@@ -110,6 +110,7 @@ index.html
 ```json
 {
   "buildCommand": "vite build",
+  "devCommand": "vite",
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.js": {

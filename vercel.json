@@ -1,5 +1,6 @@
 {
   "buildCommand": "vite build",
+  "devCommand": "vite",
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.js": {
