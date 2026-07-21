@@ -12,11 +12,15 @@ module.exports = async (req, res) => {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  const { data: dailyProgress } = await supabase
+  const { data: dailyProgress, error: dailyProgressError } = await supabase
     .from('daily_progress')
     .select('*')
     .eq('date', today)
     .maybeSingle();
+  if (dailyProgressError) {
+    res.status(500).json({ error: dailyProgressError.message });
+    return;
+  }
 
   const { data: dueStates, error: dueError } = await supabase
     .from('review_state')
