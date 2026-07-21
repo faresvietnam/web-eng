@@ -1,62 +1,63 @@
-# Thiết kế: Web học từ vựng tiếng Anh kiểu Anki (chạy local)
+# Thiết kế: Web học từ vựng tiếng Anh kiểu Anki (Vercel + Supabase)
 
 Ngày: 2026-07-21
 
 ## 1. Mục tiêu
 
-Web app chạy local giúp học và nhớ từ vựng tiếng Anh bằng kỹ thuật lặp lại ngắt quãng (spaced repetition), tự động đánh giá mức độ nhớ dựa trên kết quả làm bài, không cần đăng nhập.
+Web app giúp học và nhớ từ vựng tiếng Anh bằng kỹ thuật lặp lại ngắt quãng (spaced repetition), tự động đánh giá mức độ nhớ dựa trên kết quả làm bài, không cần đăng nhập. Deploy trên Vercel, dữ liệu lưu trên Supabase (Postgres).
 
 ## 2. Kiến trúc
 
-- **Backend:** Node.js + Express, REST API.
-- **DB:** SQLite qua `better-sqlite3`.
-- **Frontend:** React + Vite, SPA 1 trang với 3 khu vực: Study, Word List/Import, Dashboard.
-- Chạy hoàn toàn local, không auth, không cloud, không cần internet (trừ TTS trình duyệt vốn hoạt động offline trên hầu hết OS).
+- **Hosting:** Vercel — frontend static (Vite build) + API routes dưới dạng Vercel Serverless Functions (`/api/*`, Node.js runtime).
+- **DB:** Supabase (Postgres), truy cập từ serverless functions qua `@supabase/supabase-js` bằng service role key (chỉ dùng server-side, không expose ra frontend).
+- **Frontend:** React + Vite, SPA 1 trang với 3 khu vực: Study, Word List/Import, Dashboard. Gọi API qua fetch tới `/api/*` cùng domain (không gọi thẳng Supabase từ trình duyệt).
+- Không auth (single-user cá nhân), không cần đăng nhập. TTS dùng `window.speechSynthesis` của trình duyệt.
+- Local dev: `vercel dev` (chạy cả frontend + serverless functions), Supabase project riêng cho dev (hoặc local Supabase CLI) và một project riêng cho production.
 
-## 3. Data model (SQLite)
+## 3. Data model (Supabase/Postgres)
 
 ### `words`
 | cột | kiểu | ghi chú |
 |---|---|---|
-| id | INTEGER PK | |
-| word | TEXT NOT NULL | từ tiếng Anh |
-| meaning | TEXT NOT NULL | nghĩa tiếng Việt |
-| category | TEXT NULL | chủ đề, dùng để chọn đáp án nhiễu |
-| part_of_speech | TEXT NULL | danh từ/động từ/tính từ..., hiển thị dạng tag trên card học |
-| ipa | TEXT NULL | phiên âm quốc tế, ví dụ `/ˈbjuːtɪfəl/` |
-| example | TEXT NULL | câu ví dụ (tiếng Anh) |
-| example_vi | TEXT NULL | bản dịch câu ví dụ (tiếng Việt) |
-| segments | TEXT NULL | các đoạn phân tách bằng `\|`, ví dụ `"beauty\|ful"` |
-| created_at | DATETIME NOT NULL DEFAULT now |
+| id | bigint generated always as identity PK | |
+| word | text NOT NULL | từ tiếng Anh |
+| meaning | text NOT NULL | nghĩa tiếng Việt |
+| category | text NULL | chủ đề, dùng để chọn đáp án nhiễu |
+| part_of_speech | text NULL | danh từ/động từ/tính từ..., hiển thị dạng tag trên card học |
+| ipa | text NULL | phiên âm quốc tế, ví dụ `/ˈbjuːtɪfəl/` |
+| example | text NULL | câu ví dụ (tiếng Anh) |
+| example_vi | text NULL | bản dịch câu ví dụ (tiếng Việt) |
+| segments | text NULL | các đoạn phân tách bằng `\|`, ví dụ `"beauty\|ful"` |
+| created_at | timestamptz NOT NULL DEFAULT now() |
 
 ### `review_state` (1-1 với `words`)
 | cột | kiểu | ghi chú |
 |---|---|---|
-| word_id | INTEGER PK/FK → words.id | |
-| status | TEXT NOT NULL | `new` \| `learning` \| `difficult` |
-| step_index | INTEGER NOT NULL DEFAULT 0 | vị trí trong chuỗi cố định 8 mốc khi đang `new`/`learning` giai đoạn đầu (0..7) |
-| interval_days | REAL NOT NULL DEFAULT 0 | interval hiện tại, dùng sau khi qua hết chuỗi cố định |
-| correct_count | INTEGER NOT NULL DEFAULT 0 | số lần trả lời đúng liên tiếp gần nhất; reset về 0 khi Again; quyết định loại bài tập |
-| failure_count | INTEGER NOT NULL DEFAULT 0 | tổng số lần Again; ≥3 → status = difficult |
-| last_review_at | DATETIME NULL | |
-| next_review_at | DATETIME NOT NULL | mặc định = created_at (học ngay) |
-| difficult_stage | INTEGER NULL | 0/1/2 khi status = difficult, ứng với mốc 10 phút/1 ngày/3 ngày |
+| word_id | bigint PK/FK → words.id (on delete cascade) | |
+| status | text NOT NULL | `new` \| `learning` \| `difficult` |
+| step_index | integer NOT NULL DEFAULT 0 | vị trí trong chuỗi cố định 8 mốc khi đang `new`/`learning` giai đoạn đầu (0..7) |
+| interval_days | numeric NOT NULL DEFAULT 0 | interval hiện tại, dùng sau khi qua hết chuỗi cố định |
+| correct_count | integer NOT NULL DEFAULT 0 | số lần trả lời đúng liên tiếp gần nhất; reset về 0 khi Again; quyết định loại bài tập |
+| failure_count | integer NOT NULL DEFAULT 0 | tổng số lần Again; ≥3 → status = difficult |
+| last_review_at | timestamptz NULL | |
+| next_review_at | timestamptz NOT NULL DEFAULT now() | mặc định = created_at (học ngay) |
+| difficult_stage | integer NULL | 0/1/2 khi status = difficult, ứng với mốc 10 phút/1 ngày/3 ngày |
 
 ### `review_log`
 | cột | kiểu | ghi chú |
 |---|---|---|
-| id | INTEGER PK | |
-| word_id | INTEGER FK | |
-| reviewed_at | DATETIME | |
-| result | TEXT | `again` \| `hard` \| `good` |
-| exercise_type | TEXT | `mc_en_vi` \| `mc_vi_en` \| `segment` \| `full_type` |
+| id | bigint generated always as identity PK | |
+| word_id | bigint FK → words.id (on delete cascade) | |
+| reviewed_at | timestamptz NOT NULL DEFAULT now() | |
+| result | text NOT NULL | `again` \| `hard` \| `good` |
+| exercise_type | text NOT NULL | `mc_en_vi` \| `mc_vi_en` \| `segment` \| `full_type` |
 
 ### `daily_progress`
 | cột | kiểu | ghi chú |
 |---|---|---|
-| date | TEXT PK | dạng `YYYY-MM-DD`, theo giờ local |
-| new_learned | INTEGER DEFAULT 0 | số từ mới đã bắt đầu học trong ngày |
-| reviewed_count | INTEGER DEFAULT 0 | số thẻ đã ôn (review, không tính từ mới) trong ngày |
+| date | date PK | dạng `YYYY-MM-DD` |
+| new_learned | integer NOT NULL DEFAULT 0 | số từ mới đã bắt đầu học trong ngày |
+| reviewed_count | integer NOT NULL DEFAULT 0 | số thẻ đã ôn (review, không tính từ mới) trong ngày |
 
 ## 4. Thuật toán lịch ôn tập
 
@@ -101,7 +102,7 @@ Chuỗi cố định theo `step_index` (0-indexed):
 
 ## 5. Logic chọn từ học mỗi ngày & luồng session
 
-- Ranh giới "ngày" = nửa đêm giờ local máy chạy server.
+- Ranh giới "ngày" = nửa đêm theo giờ server (UTC, tính bằng `Date` trong Vercel serverless function).
 - Hạn mức: tối đa **100 từ ôn/ngày** (không tính từ mới) và tối đa **20 từ mới/ngày**. Đếm bằng bảng `daily_progress`, không phụ thuộc reload trang.
 - Khi vào Study, backend build hàng đợi:
   1. Lấy các từ có `next_review_at <= now`, sort `failure_count DESC, next_review_at ASC`, cắt còn chỗ trong hạn mức 100 (100 − `reviewed_count` hôm nay).
@@ -176,5 +177,5 @@ Dashboard, Learn (bắt đầu session hôm nay), Review (badge = số từ due)
 - Unit test thuật toán lịch ôn (`review_state` transitions) cho từng nhánh: chuỗi cố định, interval nhân hệ số, difficult, chuyển đổi giữa các trạng thái — dùng Jest hoặc Vitest, mock `Date.now`.
 - Unit test logic chọn từ hàng ngày (hạn mức 20 mới / 100 ôn, dồn ngày sau).
 - Unit test parser CSV (dòng hợp lệ, dòng thiếu field, dòng segments rỗng).
-- Integration test cơ bản cho API endpoints chính bằng supertest + SQLite in-memory.
+- Integration test cơ bản cho API endpoints chính, mock Supabase client (không cần DB thật) hoặc chạy nhắm vào Supabase project test riêng.
 - Không cần test UI tự động (E2E) cho bản đầu; kiểm thử tay trên Study flow là đủ.
