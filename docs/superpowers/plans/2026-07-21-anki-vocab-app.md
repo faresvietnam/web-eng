@@ -1379,7 +1379,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const days = Number(req.query.days) || 7;
+  const days = Math.max(1, Math.floor(Number(req.query.days)) || 7);
   const supabase = getSupabaseClient();
   const now = new Date();
   const since = new Date(now);
