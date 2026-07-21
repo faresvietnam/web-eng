@@ -1994,17 +1994,18 @@ function speak(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-function buildMcOptions(correctWord, allCards, byField) {
-  const others = allCards.map((c) => c.word).filter((w) => w.id !== correctWord.id);
+function buildMcOptions(correctWord, pool, byField) {
+  const others = pool.filter((w) => w.id !== correctWord.id);
   const sameCategory = others.filter((w) => w.category === correctWord.category);
-  const pool = sameCategory.length >= 3 ? sameCategory : others;
-  const distractors = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+  const candidates = sameCategory.length >= 3 ? sameCategory : others;
+  const distractors = [...candidates].sort(() => Math.random() - 0.5).slice(0, 3);
   const options = [...distractors, correctWord].sort(() => Math.random() - 0.5);
   return options.map((w) => ({ id: w.id, label: byField(w) }));
 }
 
 export default function StudyScreen() {
   const [cards, setCards] = useState(null);
+  const [allWords, setAllWords] = useState([]);
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -2016,6 +2017,7 @@ export default function StudyScreen() {
 
   useEffect(() => {
     api.getToday().then((data) => setCards(data.cards));
+    api.getWords().then((data) => setAllWords(data.words)).catch(() => {});
   }, []);
 
   if (cards === null) return <div>Đang tải...</div>;
@@ -2024,18 +2026,22 @@ export default function StudyScreen() {
 
   const card = cards[index];
   const { word, exercise_type } = card;
+  const status = card.review_state ? card.review_state.status : 'new';
   const segments = word.segments ? word.segments.split('|') : [];
+  const distractorPool = allWords.length > 0 ? allWords : cards.map((c) => c.word);
 
   function goNext() {
-    api.postReview(word.id, { exercise_type, result: outcome }).finally(() => {
-      setAnswered(false);
-      setSelectedId(null);
-      setMistakeMade(false);
-      setSegmentIndex(0);
-      setTextInput('');
-      setInputError(false);
-      setIndex((i) => i + 1);
-    });
+    api.postReview(word.id, { exercise_type, result: outcome })
+      .catch(() => {})
+      .finally(() => {
+        setAnswered(false);
+        setSelectedId(null);
+        setMistakeMade(false);
+        setSegmentIndex(0);
+        setTextInput('');
+        setInputError(false);
+        setIndex((i) => i + 1);
+      });
   }
 
   function handleMcChoice(choiceId) {
@@ -2077,28 +2083,45 @@ export default function StudyScreen() {
 
   const mcOptions =
     exercise_type === 'mc_en_vi'
-      ? buildMcOptions(word, cards, (w) => w.meaning)
+      ? buildMcOptions(word, distractorPool, (w) => w.meaning)
       : exercise_type === 'mc_vi_en'
-      ? buildMcOptions(word, cards, (w) => w.word)
+      ? buildMcOptions(word, distractorPool, (w) => w.word)
       : null;
+
+  // The English word must stay hidden until answered for every exercise type
+  // except mc_en_vi (where the word IS the prompt) — otherwise showing it
+  // up front trivially gives away mc_vi_en/segment/full_type answers.
+  const showWordHeading = answered || exercise_type === 'mc_en_vi';
 
   return (
     <div className="card" style={{ maxWidth: 680, margin: '0 auto', padding: '28px 32px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <span className={`tag ${STATUS_TAG_CLASS[card.review_state.status] || 'tag-new'}`}>{card.review_state.status}</span>
+          <span className={`tag ${STATUS_TAG_CLASS[status] || 'tag-new'}`}>{status}</span>
           {word.part_of_speech && <span className="tag tag-pos">{word.part_of_speech}</span>}
         </div>
         <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{index + 1}/{cards.length}</span>
       </div>
 
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-          <h1 style={{ fontSize: 48, margin: 0, fontWeight: 800 }}>{word.word}</h1>
-          <button className="btn" style={{ borderRadius: '50%', width: 38, height: 38, padding: 0 }} onClick={() => speak(word.word)} aria-label="Phát âm">🔊</button>
+      {showWordHeading ? (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+            <h1 style={{ fontSize: 48, margin: 0, fontWeight: 800 }}>{word.word}</h1>
+            <button className="btn" style={{ borderRadius: '50%', width: 38, height: 38, padding: 0 }} onClick={() => speak(word.word)} aria-label="Phát âm">🔊</button>
+          </div>
+          {word.ipa && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <span style={{ color: 'var(--ink-3)' }}>{word.ipa}</span>
+              <button className="btn" style={{ borderRadius: '50%', width: 22, height: 22, padding: 0, fontSize: 12 }} onClick={() => speak(word.word)} aria-label="Phát âm">🔊</button>
+            </div>
+          )}
         </div>
-        {word.ipa && <div style={{ color: 'var(--ink-3)', marginTop: 4 }}>{word.ipa}</div>}
-      </div>
+      ) : exercise_type === 'mc_vi_en' ? (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Từ nào có nghĩa là:</p>
+          <h1 style={{ fontSize: 32, margin: 0, fontWeight: 800 }}>{word.meaning}</h1>
+        </div>
+      ) : null}
 
       {!answered && mcOptions && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
