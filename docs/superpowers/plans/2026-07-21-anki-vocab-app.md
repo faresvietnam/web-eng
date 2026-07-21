@@ -2021,15 +2021,33 @@ export default function StudyScreen() {
     api.getWords().then((data) => setAllWords(data.words)).catch(() => {});
   }, []);
 
+  // Every hook below must run unconditionally on every render, before any
+  // early return — otherwise React sees a different number of hooks called
+  // between the loading/empty/done states and the loaded state, crashing
+  // with "Rendered more hooks than during the previous render". So `card`
+  // and everything derived from it are computed null-safely here, and the
+  // early-return checks happen further down, after all hooks have run.
+  const card = cards && index < cards.length ? cards[index] : null;
+  const word = card ? card.word : null;
+  const exercise_type = card ? card.exercise_type : null;
+  const status = card && card.review_state ? card.review_state.status : 'new';
+  const segments = word && word.segments ? word.segments.split('|') : [];
+  const distractorPool = allWords.length > 0 ? allWords : cards ? cards.map((c) => c.word) : [];
+
+  // Computed once per card (keyed on index) so the option order/sample
+  // doesn't reshuffle when answering triggers a re-render — otherwise the
+  // user's actual wrong pick can vanish from the list on the reveal frame.
+  const mcOptions = useMemo(() => {
+    if (!word) return null;
+    if (exercise_type === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
+    if (exercise_type === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   if (cards === null) return <div>Đang tải...</div>;
   if (cards.length === 0) return <div>Không có thẻ nào cần học hôm nay 🎉</div>;
   if (index >= cards.length) return <div>Đã hoàn thành hàng đợi hôm nay 🎉</div>;
-
-  const card = cards[index];
-  const { word, exercise_type } = card;
-  const status = card.review_state ? card.review_state.status : 'new';
-  const segments = word.segments ? word.segments.split('|') : [];
-  const distractorPool = allWords.length > 0 ? allWords : cards.map((c) => c.word);
 
   function goNext() {
     api.postReview(word.id, { exercise_type, result: outcome })
@@ -2082,19 +2100,6 @@ export default function StudyScreen() {
     setAnswered(true);
   }
 
-  // Computed once per card (keyed on index) so the option order/sample
-  // doesn't reshuffle when answering triggers a re-render — otherwise the
-  // user's actual wrong pick can vanish from the list on the reveal frame.
-  const mcOptions = useMemo(() => {
-    if (exercise_type === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
-    if (exercise_type === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
-    return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
-
-  // The English word must stay hidden until answered for every exercise type
-  // except mc_en_vi (where the word IS the prompt) — otherwise showing it
-  // up front trivially gives away mc_vi_en/segment/full_type answers.
   const showWordHeading = answered || exercise_type === 'mc_en_vi';
 
   return (
