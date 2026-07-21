@@ -4,7 +4,7 @@ module.exports = async (req, res) => {
   const supabase = getSupabaseClient();
 
   if (req.method === 'GET') {
-    let query = supabase.from('words').select('*, review_state(*)');
+    let query = supabase.from('words').select('*, review_state!inner(*)');
     if (req.query.status) {
       query = query.eq('review_state.status', req.query.status);
     }
@@ -47,6 +47,7 @@ module.exports = async (req, res) => {
       next_review_at: now,
     });
     if (reviewStateError) {
+      await supabase.from('words').delete().eq('id', inserted.id);
       res.status(500).json({ error: reviewStateError.message });
       return;
     }
