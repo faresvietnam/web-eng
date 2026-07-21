@@ -1983,7 +1983,7 @@ git commit -m "feat: add frontend shell with API client, top bar, and 5-tab side
 - [ ] **Step 1: Implement `src/screens/StudyScreen.jsx`**
 
 ```jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
@@ -2081,12 +2081,15 @@ export default function StudyScreen() {
     setAnswered(true);
   }
 
-  const mcOptions =
-    exercise_type === 'mc_en_vi'
-      ? buildMcOptions(word, distractorPool, (w) => w.meaning)
-      : exercise_type === 'mc_vi_en'
-      ? buildMcOptions(word, distractorPool, (w) => w.word)
-      : null;
+  // Computed once per card (keyed on index) so the option order/sample
+  // doesn't reshuffle when answering triggers a re-render — otherwise the
+  // user's actual wrong pick can vanish from the list on the reveal frame.
+  const mcOptions = useMemo(() => {
+    if (exercise_type === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
+    if (exercise_type === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   // The English word must stay hidden until answered for every exercise type
   // except mc_en_vi (where the word IS the prompt) — otherwise showing it
