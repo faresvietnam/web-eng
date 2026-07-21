@@ -2034,16 +2034,22 @@ export default function StudyScreen() {
   const segments = word && word.segments ? word.segments.split('|') : [];
   const distractorPool = allWords.length > 0 ? allWords : cards ? cards.map((c) => c.word) : [];
 
-  // Computed once per card (keyed on index) so the option order/sample
-  // doesn't reshuffle when answering triggers a re-render — otherwise the
-  // user's actual wrong pick can vanish from the list on the reveal frame.
+  // Computed once per card (keyed on the `word` object reference, which is
+  // stable across re-renders of the same card but changes when the card
+  // actually changes) so the option order/sample doesn't reshuffle when
+  // answering triggers a re-render — otherwise the user's actual wrong pick
+  // can vanish from the list on the reveal frame. Keying on `index` alone is
+  // NOT enough: on the very first render `cards` is still null (so `word` is
+  // null) while `index` is already 0, and once `cards` loads a moment later
+  // `index` is still 0 — so a `[index]`-only memo would stay locked onto the
+  // stale "no word yet" result of `null` forever.
   const mcOptions = useMemo(() => {
     if (!word) return null;
     if (exercise_type === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
     if (exercise_type === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  }, [word]);
 
   if (cards === null) return <div>Đang tải...</div>;
   if (cards.length === 0) return <div>Không có thẻ nào cần học hôm nay 🎉</div>;
