@@ -12,6 +12,7 @@
 
 - No authentication/login anywhere — single-user personal app (per spec).
 - Backend code is CommonJS (`module.exports` / `require`) inside `lib/` and `api/`; frontend code under `src/` uses ES modules (`import`/`export`) — Vite handles this without needing `"type": "module"` in `package.json`.
+- Test files (`tests/*.test.js`) must use ESM `import { describe, it, expect } from 'vitest'` — Vitest 2.x's package explicitly throws if you `require('vitest')` (verified; this is not a project config issue). To reach the CommonJS `lib/*.js` module under test from an ESM test file, add `import { createRequire } from 'module'; const require = createRequire(import.meta.url);` and `require()` the lib module as usual.
 - All Supabase access happens only inside `/api/*.js` functions via the service-role key (env var `SUPABASE_SERVICE_ROLE_KEY`, plus `SUPABASE_URL`). Never expose the service-role key to the frontend bundle.
 - Daily limits: max 100 reviews/day, max 20 new words/day (from spec section 5) — hard-coded constants, not user-configurable in v1.
 - Fixed schedule steps: `[0, 10min, 1d, 3d, 7d, 14d, 30d, 60d]` for new/learning words; `[10min, 1d, 3d]` for difficult words (spec section 4).
@@ -307,7 +308,10 @@ git commit -m "feat: add Supabase schema and client singleton"
 
 ```js
 // tests/scheduler.test.js
-const { describe, it, expect } = require('vitest');
+import { describe, it, expect } from 'vitest';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 const { applyReview } = require('../lib/scheduler');
 
 function baseState(overrides = {}) {
@@ -522,7 +526,10 @@ git commit -m "feat: implement spaced-repetition scheduler with tests"
 
 ```js
 // tests/exerciseType.test.js
-const { describe, it, expect } = require('vitest');
+import { describe, it, expect } from 'vitest';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 const { pickExerciseType } = require('../lib/exerciseType');
 
 describe('pickExerciseType', () => {
@@ -594,7 +601,10 @@ git commit -m "feat: implement exercise type selection with tests"
 
 ```js
 // tests/dailyQueue.test.js
-const { describe, it, expect } = require('vitest');
+import { describe, it, expect } from 'vitest';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 const { buildDailyQueue } = require('../lib/dailyQueue');
 
 const NOW = new Date('2026-07-21T00:00:00.000Z');
@@ -714,7 +724,10 @@ git commit -m "feat: implement daily study queue builder with tests"
 
 ```js
 // tests/csv.test.js
-const { describe, it, expect } = require('vitest');
+import { describe, it, expect } from 'vitest';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 const { parseWordsCsv } = require('../lib/csv');
 
 describe('parseWordsCsv', () => {
