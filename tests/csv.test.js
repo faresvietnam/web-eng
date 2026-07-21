@@ -51,4 +51,10 @@ describe('parseWordsCsv', () => {
   it('returns empty rows and errors for empty input', () => {
     expect(parseWordsCsv('')).toEqual({ rows: [], errors: [] });
   });
+
+  it('reports the correct line number even when a blank line precedes the bad row', () => {
+    const csv = 'word,meaning\nhi,chào\n\nbye,';
+    const { errors } = parseWordsCsv(csv);
+    expect(errors).toEqual([{ line: 4, reason: 'Thiếu field: meaning' }]);
+  });
 });
