@@ -39,12 +39,16 @@ module.exports = async (req, res) => {
     return;
   }
 
-  await supabase.from('review_log').insert({
+  const { error: logError } = await supabase.from('review_log').insert({
     word_id: wordId,
     reviewed_at: now.toISOString(),
     result,
     exercise_type,
   });
+  if (logError) {
+    res.status(500).json({ error: logError.message });
+    return;
+  }
 
   const today = now.toISOString().slice(0, 10);
   const { data: progress, error: progressError } = await supabase
@@ -57,11 +61,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  await supabase.from('daily_progress').upsert({
+  const { error: upsertError } = await supabase.from('daily_progress').upsert({
     date: today,
     new_learned: (progress?.new_learned || 0) + (wasNew ? 1 : 0),
     reviewed_count: (progress?.reviewed_count || 0) + (wasNew ? 0 : 1),
   });
+  if (upsertError) {
+    res.status(500).json({ error: upsertError.message });
+    return;
+  }
 
   res.status(200).json({ review_state: nextState });
 };
