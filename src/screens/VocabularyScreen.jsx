@@ -31,14 +31,18 @@ export default function VocabularyScreen({ onEdit }) {
     const params = {};
     if (filter !== 'all') params.status = filter;
     if (search) params.q = search;
-    api.getWords(params).then((data) => setWords(data.words));
+    api.getWords(params).then((data) => setWords(data.words)).catch((err) => console.error('Failed to load words:', err.message));
   }
 
   useEffect(reload, [filter, search]);
 
   async function handleDelete(id) {
-    await api.deleteWord(id);
-    reload();
+    try {
+      await api.deleteWord(id);
+      reload();
+    } catch (err) {
+      console.error('Failed to delete word:', err.message);
+    }
   }
 
   return (
@@ -73,7 +77,7 @@ export default function VocabularyScreen({ onEdit }) {
           </thead>
           <tbody>
             {words.map((w) => {
-              const state = w.review_state?.[0];
+              const state = w.review_state;
               const status = state?.status || 'new';
               return (
                 <tr key={w.id}>
