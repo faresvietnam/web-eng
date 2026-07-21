@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../api.js';
 
 const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', segments: '' };
@@ -12,12 +12,19 @@ const FIELDS = [
   { key: 'segments', label: 'Segments', placeholder: 'beauty|ful' },
 ];
 
+const TEMPLATE_CSV =
+  'word,meaning,category,part_of_speech,ipa,example,example_vi,segments\n' +
+  'beautiful,đẹp,appearance,adjective,/ˈbjuːtɪfəl/,She has a beautiful smile.,Cô ấy có nụ cười đẹp.,beauty|ful\n';
+const TEMPLATE_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE_CSV)}`;
+
 export default function ImportScreen({ editingWord, onDone }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [csvText, setCsvText] = useState('');
   const [importResult, setImportResult] = useState(null);
   const [formError, setFormError] = useState(null);
   const [importError, setImportError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (editingWord) {
@@ -36,6 +43,25 @@ export default function ImportScreen({ editingWord, onDone }) {
 
   function handleFieldChange(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function readCsvFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => setCsvText(String(reader.result));
+    reader.readAsText(file);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) readCsvFile(file);
+  }
+
+  function handleFileInputChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (file) readCsvFile(file);
+    e.target.value = '';
   }
 
   async function handleSubmit(e) {
@@ -75,6 +101,45 @@ export default function ImportScreen({ editingWord, onDone }) {
           <span className="seg-opt checked">CSV / Excel</span>
           <span className="seg-opt">Paste text</span>
           <span className="seg-opt">From clipboard</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            style={{
+              border: `1.5px dashed ${isDragging ? 'var(--sb)' : 'var(--line)'}`,
+              borderRadius: 12,
+              padding: 32,
+              textAlign: 'center',
+              background: '#fafafa',
+            }}
+          >
+            <div style={{ fontSize: 15, marginBottom: 4 }}>Drag &amp; drop a CSV file here</div>
+            <a
+              href="#"
+              style={{ fontSize: 14, fontWeight: 600 }}
+              onClick={(e) => { e.preventDefault(); fileInputRef.current.click(); }}
+            >
+              or click to browse
+            </a>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileInputChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+          <div className="card" style={{ background: '#fafafa' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>CSV format tip</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 10 }}>
+              Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, segments
+            </div>
+            <a href={TEMPLATE_HREF} download="template.csv" style={{ fontSize: 13, fontWeight: 600 }}>
+              ↓ Download template.csv
+            </a>
+          </div>
         </div>
         <form onSubmit={handleImport}>
           <textarea
