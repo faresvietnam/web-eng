@@ -2086,7 +2086,7 @@ export default function StudyScreen() {
     <div className="card" style={{ maxWidth: 680, margin: '0 auto', padding: '28px 32px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <span className={`tag ${STATUS_TAG_CLASS[word.status] || 'tag-new'}`}>{word.status}</span>
+          <span className={`tag ${STATUS_TAG_CLASS[card.review_state.status] || 'tag-new'}`}>{card.review_state.status}</span>
           {word.part_of_speech && <span className="tag tag-pos">{word.part_of_speech}</span>}
         </div>
         <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{index + 1}/{cards.length}</span>
