@@ -2442,6 +2442,7 @@ export default function ImportScreen({ editingWord, onDone }) {
   function readCsvFile(file) {
     const reader = new FileReader();
     reader.onload = () => setCsvText(String(reader.result));
+    reader.onerror = () => setImportError('Không đọc được file. Vui lòng thử lại.');
     reader.readAsText(file);
   }
 
