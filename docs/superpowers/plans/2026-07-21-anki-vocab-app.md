@@ -2337,7 +2337,7 @@ export default function VocabularyScreen({ onEdit }) {
           </thead>
           <tbody>
             {words.map((w) => {
-              const state = w.review_state?.[0];
+              const state = w.review_state;
               const status = state?.status || 'new';
               return (
                 <tr key={w.id}>
