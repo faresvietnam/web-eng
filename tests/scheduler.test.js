@@ -98,4 +98,18 @@ describe('applyReview - difficult phase', () => {
     expect(next.difficult_stage).toBe(0);
     expect(next.failure_count).toBe(4);
   });
+
+  it('after graduating from difficult, a subsequent good review multiplies interval_days (does not fall back into the fixed ladder)', () => {
+    const graduated = applyReview({
+      reviewState: baseState({ status: 'difficult', difficult_stage: 2, failure_count: 3, step_index: 1 }),
+      result: 'good',
+      now: NOW,
+    });
+    expect(graduated.status).toBe('learning');
+    expect(graduated.interval_days).toBe(7);
+
+    const next = applyReview({ reviewState: graduated, result: 'good', now: NOW });
+    expect(next.interval_days).toBe(14);
+    expect(next.status).toBe('learning');
+  });
 });
