@@ -87,6 +87,9 @@ index.html
   "name": "anki-vocab-app",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -111,14 +114,11 @@ index.html
 {
   "buildCommand": "vite build",
   "devCommand": "vite",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "outputDirectory": "dist"
 }
 ```
+
+Node.js function version is set via `package.json`'s `engines.node` field, not a `functions.runtime` string in `vercel.json` — the older `"runtime": "nodejs20.x"` format is rejected by current Vercel CLI ("Function Runtimes must have a valid version, for example `now-php@1.0.0`" — that format is for community/custom runtimes only).
 
 - [ ] **Step 3: Create `vitest.config.js`**
 
