@@ -78,7 +78,7 @@ export default function App() {
           <input className="input topbar-search" placeholder="Search words, tags, examples..." />
         </div>
         <main className="content">
-          {activeTab === 'dashboard' && <DashboardScreen />}
+          {activeTab === 'dashboard' && <DashboardScreen onViewAllDifficult={() => setActiveTab('vocabulary')} />}
           {activeTab === 'learn' && <StudyScreen />}
           {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} />}
           {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}

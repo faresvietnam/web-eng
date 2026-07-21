@@ -9,18 +9,24 @@ function speak(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-export default function DashboardScreen() {
+export default function DashboardScreen({ onViewAllDifficult }) {
   const [summary, setSummary] = useState(null);
   const [chart, setChart] = useState(null);
   const [previewCards, setPreviewCards] = useState(null);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [chartDays, setChartDays] = useState(7);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    api.getDashboard().then(setSummary).catch((err) => console.error('Failed to load dashboard summary:', err.message));
-    api.getReviewsChart(7).then((data) => setChart(data.days)).catch((err) => console.error('Failed to load reviews chart:', err.message));
-    api.getToday().then((data) => setPreviewCards(data.cards)).catch((err) => console.error('Failed to load today queue:', err.message));
+    api.getDashboard().then(setSummary).catch((err) => setError(err.message));
+    api.getToday().then((data) => setPreviewCards(data.cards)).catch((err) => setError(err.message));
   }, []);
 
+  useEffect(() => {
+    api.getReviewsChart(chartDays).then((data) => setChart(data.days)).catch((err) => setError(err.message));
+  }, [chartDays]);
+
+  if (error) return <div className="card" style={{ color: 'var(--red)' }}>Không tải được dashboard: {error}</div>;
   if (!summary || !chart || !previewCards) return <div>Đang tải...</div>;
 
   const maxCount = Math.max(1, ...chart.map((d) => d.new_learned + d.reviewed_count));
@@ -66,6 +72,19 @@ export default function DashboardScreen() {
               <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
               <div style={{ fontSize: 16, fontWeight: 600 }}>{previewCard.word.meaning}</div>
             </div>
+            {previewCard.word.segments && (
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Word breakdown</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {previewCard.word.segments.split('|').map((seg, i) => (
+                    <React.Fragment key={seg}>
+                      {i > 0 && <span style={{ color: 'var(--ink-3)' }}>+</span>}
+                      <span className={`chip ${i === 0 ? 'chip-1' : 'chip-2'}`}>{seg}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
             {previewCard.word.example && (
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 20 }}>
                 <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>
@@ -90,7 +109,16 @@ export default function DashboardScreen() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14 }}>Reviews</h3>
-            <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>7 days</span>
+            <select
+              className="input"
+              style={{ width: 'auto', fontSize: 12, padding: '3px 8px' }}
+              value={chartDays}
+              onChange={(e) => setChartDays(Number(e.target.value))}
+            >
+              <option value={7}>7 days</option>
+              <option value={14}>14 days</option>
+              <option value={30}>30 days</option>
+            </select>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 100 }}>
             {chart.map((d) => (
@@ -103,7 +131,16 @@ export default function DashboardScreen() {
         </div>
 
         <div className="card">
-          <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Difficult / Forgotten words</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 14 }}>Difficult / Forgotten words</h3>
+            <a
+              href="#"
+              style={{ fontSize: 12, fontWeight: 600 }}
+              onClick={(e) => { e.preventDefault(); onViewAllDifficult && onViewAllDifficult(); }}
+            >
+              View all →
+            </a>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {summary.difficult_words.map((s) => (
               <div key={s.word_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
