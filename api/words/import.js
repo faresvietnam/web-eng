@@ -40,7 +40,13 @@ module.exports = async (req, res) => {
 
   const { error: reviewStateError } = await supabase.from('review_state').insert(reviewStates);
   if (reviewStateError) {
-    await supabase.from('words').delete().in('id', inserted.map((w) => w.id));
+    const { error: cleanupError } = await supabase
+      .from('words')
+      .delete()
+      .in('id', inserted.map((w) => w.id));
+    if (cleanupError) {
+      console.error('Failed to clean up orphaned words after review_state insert failure:', cleanupError.message);
+    }
     res.status(500).json({ error: reviewStateError.message });
     return;
   }
