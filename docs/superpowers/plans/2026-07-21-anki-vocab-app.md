@@ -1055,7 +1055,7 @@ module.exports = async (req, res) => {
   const supabase = getSupabaseClient();
 
   if (req.method === 'GET') {
-    let query = supabase.from('words').select('*, review_state(*)');
+    let query = supabase.from('words').select('*, review_state!inner(*)');
     if (req.query.status) {
       query = query.eq('review_state.status', req.query.status);
     }
@@ -1088,7 +1088,7 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: insertError.message });
       return;
     }
-    await supabase.from('review_state').insert({
+    const { error: reviewStateError } = await supabase.from('review_state').insert({
       word_id: inserted.id,
       status: 'new',
       step_index: 0,
@@ -1097,6 +1097,11 @@ module.exports = async (req, res) => {
       failure_count: 0,
       next_review_at: now,
     });
+    if (reviewStateError) {
+      await supabase.from('words').delete().eq('id', inserted.id);
+      res.status(500).json({ error: reviewStateError.message });
+      return;
+    }
     res.status(201).json({ word: inserted });
     return;
   }
