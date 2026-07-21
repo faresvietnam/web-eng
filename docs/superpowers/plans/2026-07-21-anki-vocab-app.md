@@ -88,7 +88,7 @@ index.html
   "private": true,
   "version": "1.0.0",
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "vite",
