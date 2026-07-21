@@ -52,14 +52,16 @@ src/
   api.js
   screens/StudyScreen.jsx
   screens/VocabularyScreen.jsx
+  screens/ImportScreen.jsx
   screens/DashboardScreen.jsx
+  screens/SettingsScreen.jsx
   styles.css
 index.html
 ```
 
 - `lib/` = pure logic + Supabase client factory, importable from `api/` and `tests/`.
 - `api/` = one file per Vercel serverless route (file path = URL path, `[param].js` = dynamic segment).
-- `src/` = Vite React frontend, three screens behind a simple tab switcher (no router needed for 3 screens — YAGNI).
+- `src/` = Vite React frontend, matching the existing UI mockup (`VocabApp.dc.html` at repo root — layout, copy, and color tokens sourced from there; see spec section 9). Five screens (Dashboard, Learn, Vocabulary, Import, Settings) behind a simple tab switcher (no router needed — YAGNI). No "delete all data" action in v1 (decided out of scope; see spec section 9 Settings note).
 
 ---
 
@@ -1373,7 +1375,7 @@ git commit -m "feat: add GET /api/dashboard/reviews-chart endpoint"
 
 ---
 
-### Task 13: Frontend shell — API client, sidebar, tab routing
+### Task 13: Frontend shell — API client, top bar, sidebar, tab routing
 
 **Files:**
 - Create: `src/api.js`
@@ -1381,8 +1383,9 @@ git commit -m "feat: add GET /api/dashboard/reviews-chart endpoint"
 - Create: `src/styles.css`
 
 **Interfaces:**
-- Produces: `api.getToday()`, `api.postReview(wordId, body)`, `api.getWords(params)`, `api.createWord(body)`, `api.updateWord(id, body)`, `api.deleteWord(id)`, `api.importCsv(csvText)`, `api.getDashboard()`, `api.getReviewsChart(days)` — all return parsed JSON or throw on non-2xx. Consumed by Tasks 14–16.
-- `App.jsx` renders a sidebar with 3 tabs (`Study`, `Vocabulary`, `Dashboard`) and switches screens via `useState`, no router library (YAGNI for 3 screens).
+- Produces: `api.getToday()`, `api.postReview(wordId, body)`, `api.getWords(params)`, `api.createWord(body)`, `api.updateWord(id, body)`, `api.deleteWord(id)`, `api.importCsv(csvText)`, `api.getDashboard()`, `api.getReviewsChart(days)` — all return parsed JSON or throw on non-2xx. Consumed by Tasks 14–18.
+- `App.jsx` renders the layout from the existing mockup (`VocabApp.dc.html` at repo root, see spec section 9): a fixed sidebar with 5 nav items (**Dashboard**, **Learn**, **Vocabulary**, **Import**, **Settings**, in that order) switched via `useState` (no router — YAGNI for 5 screens), plus a top bar. `App.jsx` owns `editingWord` state so the Vocabulary screen's "Sửa" action can hand a word to the Import screen's form and switch tabs to it.
+- CSS class names (defined in `styles.css`, used by Tasks 14–18): `.layout`, `.sidebar`, `.sidebar-brand`, `.sidebar-logo`, `.sidebar-title`, `.sidebar-subtitle`, `.sidebar-nav`, `.navitem` (+ `.active`), `.sidebar-footer`, `.sidebar-widget`, `.sidebar-widget-title`, `.sidebar-widget-text`, `.main`, `.topbar`, `.topbar-search`, `.content`, `.card`, `.btn` (+ `.btn-primary`, `.btn-secondary`, `.btn-danger`), `.input` (+ `.input-error`), `.tag` (+ `.tag-new`, `.tag-learning`, `.tag-difficult`, `.tag-pos`), `.chip` (+ `.chip-1`, `.chip-2`), `.stat` (+ `.stat-label`, `.stat-value`), `.bar-track` / `.bar-fill`, `.seg` / `.seg-opt` (+ `.checked`), `.table`, `.opt-btn` (+ `.correct`, `.incorrect`, `.faded`).
 
 - [ ] **Step 1: Create `src/api.js`**
 
@@ -1420,105 +1423,464 @@ export const api = {
 - [ ] **Step 2: Create `src/styles.css`**
 
 ```css
+:root {
+  --sb: #2563eb;
+  --sb-light: #dbeafe;
+  --sb-dark: #1d4ed8;
+  --purple: #7c3aed;
+  --purple-light: #ede9fe;
+  --green: #16a34a;
+  --green-light: #dcfce7;
+  --orange: #d97706;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --ink: #111827;
+  --ink-2: #4b5563;
+  --ink-3: #9ca3af;
+  --line: #e5e7eb;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f7f7f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
 }
 
 .layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 180px;
-  background: #1f2937;
-  color: white;
-  padding: 16px 0;
+  width: 240px;
+  flex: none;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
 }
 
-.sidebar button {
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--sb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.sidebar-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.sidebar-subtitle {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navitem {
   display: block;
   width: 100%;
-  padding: 12px 20px;
-  background: none;
-  border: none;
-  color: #d1d5db;
   text-align: left;
-  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  background: none;
   font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
 }
 
-.sidebar button.active {
-  background: #374151;
-  color: white;
+.navitem:hover {
+  background: #f3f4f6;
+}
+
+.navitem.active {
+  background: var(--sb-light);
+  color: var(--sb-dark);
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-widget {
+  padding: 12px;
+}
+
+.sidebar-widget-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sidebar-widget-text {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.topbar-search {
+  max-width: 420px;
 }
 
 .content {
   flex: 1;
+  overflow-y: auto;
   padding: 24px;
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin-bottom: 16px;
 }
 
-input, button {
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
   font-size: 14px;
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: #f3f4f6;
+  color: var(--ink-2);
+}
+
+.btn-primary {
+  background: var(--sb);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--sb-dark);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.btn-danger {
+  background: var(--surface);
+  color: var(--red);
+  border-color: var(--red-light);
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: 2px solid var(--sb);
+  outline-offset: 0;
+  border-color: var(--sb);
+}
+
+.input-error {
+  border-color: var(--red) !important;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.tag-new { background: var(--sb-light); color: var(--sb-dark); }
+.tag-learning { background: #f3f4f6; color: var(--ink-2); }
+.tag-difficult { background: var(--red-light); color: var(--red); }
+.tag-pos { background: var(--purple-light); color: var(--purple); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chip-1 { background: var(--sb-light); color: var(--sb-dark); }
+.chip-2 { background: var(--green-light); color: var(--green); }
+
+.stat {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.stat-label { font-size: 13px; color: var(--ink-2); }
+.stat-value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+
+.bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--sb);
+}
+
+.seg {
+  display: inline-flex;
+  gap: 4px;
+  background: #f3f4f6;
+  padding: 3px;
+  border-radius: 10px;
+}
+
+.seg-opt {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink-2);
+  border: none;
+  background: none;
+}
+
+.seg-opt.checked {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.opt-btn {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 16px;
+  text-align: left;
+}
+
+.opt-btn:hover {
+  background: #f9fafb;
+}
+
+.opt-btn.correct {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: #15803d;
+}
+
+.opt-btn.incorrect {
+  background: var(--red-light);
+  border-color: var(--red);
+  color: #b91c1c;
+}
+
+.opt-btn.faded {
+  opacity: 0.5;
 }
 ```
 
 - [ ] **Step 3: Replace `src/App.jsx`**
 
 ```jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from './api.js';
+import DashboardScreen from './screens/DashboardScreen.jsx';
 import StudyScreen from './screens/StudyScreen.jsx';
 import VocabularyScreen from './screens/VocabularyScreen.jsx';
-import DashboardScreen from './screens/DashboardScreen.jsx';
+import ImportScreen from './screens/ImportScreen.jsx';
+import SettingsScreen from './screens/SettingsScreen.jsx';
 
 const TABS = [
-  { key: 'study', label: 'Study', component: StudyScreen },
-  { key: 'vocabulary', label: 'Vocabulary', component: VocabularyScreen },
-  { key: 'dashboard', label: 'Dashboard', component: DashboardScreen },
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'learn', label: 'Learn' },
+  { key: 'vocabulary', label: 'Vocabulary' },
+  { key: 'import', label: 'Import' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const Active = TABS.find((t) => t.key === activeTab).component;
+  const [editingWord, setEditingWord] = useState(null);
+  const [dailyGoal, setDailyGoal] = useState(null);
+
+  useEffect(() => {
+    api.getDashboard().then(setDailyGoal);
+  }, [activeTab]);
+
+  function handleEditWord(word) {
+    setEditingWord(word);
+    setActiveTab('import');
+  }
+
+  function handleImportDone() {
+    setEditingWord(null);
+    setActiveTab('vocabulary');
+  }
 
   return (
     <div className="layout">
       <nav className="sidebar">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            className={tab.key === activeTab ? 'active' : ''}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div className="sidebar-brand">
+          <div className="sidebar-logo">V</div>
+          <div>
+            <div className="sidebar-title">My Vocab</div>
+            <div className="sidebar-subtitle">Master vocabulary daily.</div>
+          </div>
+        </div>
+        <div className="sidebar-nav">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              className={`navitem${tab.key === activeTab ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="sidebar-footer">
+          <div className="card sidebar-widget">
+            <div className="sidebar-widget-title">☁️ Cloud sync</div>
+            <div className="sidebar-widget-text">Dữ liệu được lưu trên Supabase, tự động đồng bộ.</div>
+          </div>
+          <div className="card sidebar-widget">
+            <div className="sidebar-widget-title">🔥 Daily goal</div>
+            <div className="sidebar-widget-text">
+              {dailyGoal ? `${dailyGoal.reviewed_today} / ${dailyGoal.review_limit} reviews` : '...'}
+            </div>
+            <div className="bar-track">
+              <div
+                className="bar-fill"
+                style={{ width: `${dailyGoal ? Math.min(100, (dailyGoal.reviewed_today / dailyGoal.review_limit) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
       </nav>
-      <main className="content">
-        <Active />
-      </main>
+      <div className="main">
+        <div className="topbar">
+          <input className="input topbar-search" placeholder="Search words, tags, examples..." />
+        </div>
+        <main className="content">
+          {activeTab === 'dashboard' && <DashboardScreen />}
+          {activeTab === 'learn' && <StudyScreen />}
+          {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} />}
+          {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}
+          {activeTab === 'settings' && <SettingsScreen />}
+        </main>
+      </div>
     </div>
   );
 }
 ```
 
-- [ ] **Step 4: Create placeholder screens (filled in Tasks 14–16)**
+- [ ] **Step 4: Create placeholder screens (filled in Tasks 14–18)**
+
+```jsx
+// src/screens/DashboardScreen.jsx
+import React from 'react';
+export default function DashboardScreen() {
+  return <div>Dashboard (coming in Task 17)</div>;
+}
+```
 
 ```jsx
 // src/screens/StudyScreen.jsx
 import React from 'react';
 export default function StudyScreen() {
-  return <div>Study (coming in Task 14)</div>;
+  return <div>Learn (coming in Task 14)</div>;
 }
 ```
 
@@ -1531,10 +1893,18 @@ export default function VocabularyScreen() {
 ```
 
 ```jsx
-// src/screens/DashboardScreen.jsx
+// src/screens/ImportScreen.jsx
 import React from 'react';
-export default function DashboardScreen() {
-  return <div>Dashboard (coming in Task 16)</div>;
+export default function ImportScreen() {
+  return <div>Import (coming in Task 16)</div>;
+}
+```
+
+```jsx
+// src/screens/SettingsScreen.jsx
+import React from 'react';
+export default function SettingsScreen() {
+  return <div>Settings (coming in Task 18)</div>;
 }
 ```
 
@@ -1547,25 +1917,27 @@ Expected: builds successfully, no errors.
 
 ```bash
 git add src/api.js src/styles.css src/App.jsx src/screens
-git commit -m "feat: add frontend shell with API client and tab navigation"
+git commit -m "feat: add frontend shell with API client, top bar, and 5-tab sidebar"
 ```
 
 ---
 
-### Task 14: Frontend — Study screen
+### Task 14: Frontend — Learn (Study) screen
 
 **Files:**
 - Modify: `src/screens/StudyScreen.jsx`
 
 **Interfaces:**
 - Consumes: `api.getToday()`, `api.postReview()` (Task 13).
-- Produces: full flashcard flow for `mc_en_vi`, `mc_vi_en`, `segment`, `full_type` exercise types, self-graded per spec section 8.
+- Produces: full flashcard flow for `mc_en_vi`, `mc_vi_en`, `segment`, `full_type` exercise types, self-graded per spec section 8, styled per spec section 9 "Màn hình Learn".
 
 - [ ] **Step 1: Implement `src/screens/StudyScreen.jsx`**
 
 ```jsx
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
+
+const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
 function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
@@ -1574,9 +1946,7 @@ function speak(text) {
 }
 
 function buildMcOptions(correctWord, allCards, byField) {
-  const others = allCards
-    .map((c) => c.word)
-    .filter((w) => w.id !== correctWord.id);
+  const others = allCards.map((c) => c.word).filter((w) => w.id !== correctWord.id);
   const sameCategory = others.filter((w) => w.category === correctWord.category);
   const pool = sameCategory.length >= 3 ? sameCategory : others;
   const distractors = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
@@ -1588,7 +1958,8 @@ export default function StudyScreen() {
   const [cards, setCards] = useState(null);
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState(false);
-  const [wasCorrectFirstTry, setWasCorrectFirstTry] = useState(true);
+  const [selectedId, setSelectedId] = useState(null);
+  const [outcome, setOutcome] = useState('good');
   const [mistakeMade, setMistakeMade] = useState(false);
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [textInput, setTextInput] = useState('');
@@ -1606,9 +1977,10 @@ export default function StudyScreen() {
   const { word, exercise_type } = card;
   const segments = word.segments ? word.segments.split('|') : [];
 
-  function goNext(result) {
-    api.postReview(word.id, { exercise_type, result }).finally(() => {
+  function goNext() {
+    api.postReview(word.id, { exercise_type, result: outcome }).finally(() => {
       setAnswered(false);
+      setSelectedId(null);
       setMistakeMade(false);
       setSegmentIndex(0);
       setTextInput('');
@@ -1619,10 +1991,9 @@ export default function StudyScreen() {
 
   function handleMcChoice(choiceId) {
     if (answered) return;
-    const correct = choiceId === word.id;
+    setSelectedId(choiceId);
+    setOutcome(choiceId === word.id ? 'good' : 'again');
     setAnswered(true);
-    setWasCorrectFirstTry(correct);
-    if (!correct) goNext('again');
   }
 
   function handleSegmentSubmit(e) {
@@ -1630,13 +2001,8 @@ export default function StudyScreen() {
     const expected = segments[segmentIndex];
     if (textInput.trim().toLowerCase() === expected.toLowerCase()) {
       setInputError(false);
-      if (segmentIndex + 1 < segments.length) {
-        setSegmentIndex((s) => s + 1);
-        setTextInput('');
-      } else {
-        setSegmentIndex((s) => s + 1);
-        setTextInput('');
-      }
+      setSegmentIndex((s) => s + 1);
+      setTextInput('');
     } else {
       setInputError(true);
       setMistakeMade(true);
@@ -1645,10 +2011,9 @@ export default function StudyScreen() {
 
   function handleFullWordSubmit(e) {
     e.preventDefault();
-    const expected = (segments.length > 0 ? word.word : word.word).toLowerCase();
-    if (textInput.trim().toLowerCase() === expected) {
+    if (textInput.trim().toLowerCase() === word.word.toLowerCase()) {
+      setOutcome(mistakeMade ? 'hard' : 'good');
       setAnswered(true);
-      goNext(mistakeMade ? 'hard' : 'good');
     } else {
       setInputError(true);
       setMistakeMade(true);
@@ -1657,99 +2022,137 @@ export default function StudyScreen() {
   }
 
   function handleShowAnswer() {
+    setOutcome('again');
     setAnswered(true);
-    goNext('again');
   }
 
-  return (
-    <div className="card">
-      <div>
-        {word.part_of_speech && <span>[{word.part_of_speech}] </span>}
-        {index + 1}/{cards.length}
-      </div>
-      <h1>
-        {word.word} <button onClick={() => speak(word.word)}>🔊</button>
-      </h1>
-      {word.ipa && <div>{word.ipa}</div>}
+  const mcOptions =
+    exercise_type === 'mc_en_vi'
+      ? buildMcOptions(word, cards, (w) => w.meaning)
+      : exercise_type === 'mc_vi_en'
+      ? buildMcOptions(word, cards, (w) => w.word)
+      : null;
 
-      {!answered && exercise_type === 'mc_en_vi' && (
-        <div>
-          <p>Nghĩa của từ này là gì?</p>
-          {buildMcOptions(word, cards, (w) => w.meaning).map((opt) => (
-            <button key={opt.id} onClick={() => handleMcChoice(opt.id)}>{opt.label}</button>
+  return (
+    <div className="card" style={{ maxWidth: 680, margin: '0 auto', padding: '28px 32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span className={`tag ${STATUS_TAG_CLASS[word.status] || 'tag-new'}`}>{word.status}</span>
+          {word.part_of_speech && <span className="tag tag-pos">{word.part_of_speech}</span>}
+        </div>
+        <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{index + 1}/{cards.length}</span>
+      </div>
+
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+          <h1 style={{ fontSize: 48, margin: 0, fontWeight: 800 }}>{word.word}</h1>
+          <button className="btn" style={{ borderRadius: '50%', width: 38, height: 38, padding: 0 }} onClick={() => speak(word.word)} aria-label="Phát âm">🔊</button>
+        </div>
+        {word.ipa && <div style={{ color: 'var(--ink-3)', marginTop: 4 }}>{word.ipa}</div>}
+      </div>
+
+      {!answered && mcOptions && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
+          {mcOptions.map((opt) => (
+            <button key={opt.id} className="opt-btn" onClick={() => handleMcChoice(opt.id)}>{opt.label}</button>
           ))}
         </div>
       )}
 
-      {!answered && exercise_type === 'mc_vi_en' && (
-        <div>
-          <p>Từ nào có nghĩa là "{word.meaning}"?</p>
-          {buildMcOptions(word, cards, (w) => w.word).map((opt) => (
-            <button key={opt.id} onClick={() => handleMcChoice(opt.id)}>{opt.label}</button>
-          ))}
+      {answered && mcOptions && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
+          {mcOptions.map((opt) => {
+            const cls = opt.id === word.id ? 'correct' : opt.id === selectedId ? 'incorrect' : 'faded';
+            return <button key={opt.id} className={`opt-btn ${cls}`} disabled>{opt.label}</button>;
+          })}
         </div>
       )}
 
       {!answered && exercise_type === 'segment' && segmentIndex < segments.length && (
-        <form onSubmit={handleSegmentSubmit}>
+        <form onSubmit={handleSegmentSubmit} style={{ marginBottom: 24 }}>
           <p>
             {segments.map((seg, i) => (
               <span key={i}>{i < segmentIndex ? seg : i === segmentIndex ? '____' : '....'} </span>
             ))}
           </p>
           <input
-            style={{ borderColor: inputError ? 'red' : undefined }}
+            className={`input${inputError ? ' input-error' : ''}`}
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             autoFocus
           />
-          <button type="submit">Enter</button>
-          <button type="button" onClick={handleShowAnswer}>Xem đáp án</button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary">Enter</button>
+            <button type="button" className="btn btn-secondary" onClick={handleShowAnswer}>Xem đáp án</button>
+          </div>
         </form>
       )}
 
       {!answered && exercise_type === 'segment' && segmentIndex >= segments.length && (
-        <form onSubmit={handleFullWordSubmit}>
+        <form onSubmit={handleFullWordSubmit} style={{ marginBottom: 24 }}>
           <p>Nhập lại toàn bộ từ:</p>
           <input
-            style={{ borderColor: inputError ? 'red' : undefined }}
+            className={`input${inputError ? ' input-error' : ''}`}
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             autoFocus
           />
-          <button type="submit">Enter</button>
-          <button type="button" onClick={handleShowAnswer}>Xem đáp án</button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary">Enter</button>
+            <button type="button" className="btn btn-secondary" onClick={handleShowAnswer}>Xem đáp án</button>
+          </div>
         </form>
       )}
 
       {!answered && exercise_type === 'full_type' && (
-        <form onSubmit={handleFullWordSubmit}>
+        <form onSubmit={handleFullWordSubmit} style={{ marginBottom: 24 }}>
           <p>Nhập từ tiếng Anh cho nghĩa: "{word.meaning}"</p>
           <input
-            style={{ borderColor: inputError ? 'red' : undefined }}
+            className={`input${inputError ? ' input-error' : ''}`}
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             autoFocus
           />
-          <button type="submit">Enter</button>
-          <button type="button" onClick={handleShowAnswer}>Xem đáp án</button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary">Enter</button>
+            <button type="button" className="btn btn-secondary" onClick={handleShowAnswer}>Xem đáp án</button>
+          </div>
         </form>
       )}
 
       {answered && (
         <div>
-          <p>Nghĩa: {word.meaning}</p>
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>{word.meaning}</div>
+          </div>
+
           {word.segments && (
-            <p>Word breakdown: {word.segments.split('|').map((s) => <span key={s} className="card">{s}</span>)}</p>
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Word breakdown</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {segments.map((seg, i) => (
+                  <React.Fragment key={seg}>
+                    {i > 0 && <span style={{ color: 'var(--ink-3)' }}>+</span>}
+                    <span className={`chip ${i === 0 ? 'chip-1' : 'chip-2'}`}>{seg}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
           )}
+
           {word.example && (
-            <p>
-              {word.example} <button onClick={() => speak(word.example)}>🔊</button>
-              <br />
-              {word.example_vi}
-            </p>
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{word.example}</div>
+              <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{word.example_vi}</span>
+                <button className="btn" style={{ borderRadius: '50%', width: 20, height: 20, padding: 0 }} onClick={() => speak(word.example)} aria-label="Phát âm">🔊</button>
+              </div>
+            </div>
           )}
-          <button onClick={() => goNext(wasCorrectFirstTry ? 'good' : 'again')}>Tiếp tục</button>
+
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={goNext}>Thẻ tiếp theo →</button>
         </div>
       )}
     </div>
@@ -1764,24 +2167,25 @@ Expected: builds successfully.
 
 - [ ] **Step 3: Manual verification**
 
-Run: `vercel dev`, open `http://localhost:3000`, click "Study" tab. With at least one word created (via `curl` from Task 9), confirm: word displays, multiple-choice/typing flow works per `exercise_type`, "Tiếp tục" advances to the next card, and the queue empties after all cards are done.
+Run: `vercel dev`, open `http://localhost:3000`, click "Learn" in the sidebar. With at least one word created (via `curl` from Task 9), confirm: word displays with status/part-of-speech tags, multiple-choice options color correctly after answering (green = correct, red = wrong pick, faded = rest), typing flows enforce retry-in-place with a red border, "Thẻ tiếp theo →" advances to the next card, and the queue empties after all cards are done.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/screens/StudyScreen.jsx
-git commit -m "feat: implement Study screen flashcard flow"
+git commit -m "feat: implement Learn screen flashcard flow"
 ```
 
 ---
 
-### Task 15: Frontend — Vocabulary / Import screen
+### Task 15: Frontend — Vocabulary screen
 
 **Files:**
 - Modify: `src/screens/VocabularyScreen.jsx`
 
 **Interfaces:**
-- Consumes: `api.getWords()`, `api.createWord()`, `api.updateWord()`, `api.deleteWord()`, `api.importCsv()` (Task 13).
+- Consumes: `api.getWords()`, `api.deleteWord()` (Task 13).
+- Produces: a `VocabularyScreen({ onEdit })` component — `onEdit(word)` is called when the user clicks "Sửa" on a row; `App.jsx` (Task 13) uses it to switch to the Import tab with that word preloaded. Consumed by Task 13's `App.jsx`.
 
 - [ ] **Step 1: Implement `src/screens/VocabularyScreen.jsx`**
 
@@ -1789,118 +2193,95 @@ git commit -m "feat: implement Study screen flashcard flow"
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
-const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', segments: '' };
+const FILTERS = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'new', label: 'New' },
+  { key: 'learning', label: 'Learning' },
+  { key: 'difficult', label: 'Difficult' },
+];
 
-export default function VocabularyScreen() {
+const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
+const STATUS_LABEL = { new: 'New', learning: 'Learning', difficult: 'Difficult' };
+
+function formatNextReview(iso) {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return 'Hôm nay';
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 60) return `${minutes} phút nữa`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} giờ nữa`;
+  const days = Math.round(hours / 24);
+  return `${days} ngày nữa`;
+}
+
+export default function VocabularyScreen({ onEdit }) {
   const [words, setWords] = useState([]);
+  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState(null);
-  const [csvText, setCsvText] = useState('');
-  const [importResult, setImportResult] = useState(null);
 
   function reload() {
-    api.getWords(search ? { q: search } : {}).then((data) => setWords(data.words));
+    const params = {};
+    if (filter !== 'all') params.status = filter;
+    if (search) params.q = search;
+    api.getWords(params).then((data) => setWords(data.words));
   }
 
-  useEffect(reload, [search]);
-
-  function handleFieldChange(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (editingId) {
-      await api.updateWord(editingId, form);
-    } else {
-      await api.createWord(form);
-    }
-    setForm(EMPTY_FORM);
-    setEditingId(null);
-    reload();
-  }
-
-  function handleEdit(w) {
-    setEditingId(w.id);
-    setForm({
-      word: w.word, meaning: w.meaning, category: w.category || '', part_of_speech: w.part_of_speech || '',
-      ipa: w.ipa || '', example: w.example || '', example_vi: w.example_vi || '', segments: w.segments || '',
-    });
-  }
+  useEffect(reload, [filter, search]);
 
   async function handleDelete(id) {
     await api.deleteWord(id);
     reload();
   }
 
-  async function handleImport(e) {
-    e.preventDefault();
-    const result = await api.importCsv(csvText);
-    setImportResult(result);
-    setCsvText('');
-    reload();
-  }
-
   return (
     <div>
-      <div className="card">
-        <h2>{editingId ? 'Sửa từ' : 'Thêm từ mới'}</h2>
-        <form onSubmit={handleSubmit}>
-          {Object.keys(EMPTY_FORM).map((field) => (
-            <div key={field}>
-              <label>{field}: </label>
-              <input value={form[field]} onChange={(e) => handleFieldChange(field, e.target.value)} />
-            </div>
+      <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Danh sách từ vựng</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div className="seg">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={`seg-opt${filter === f.key ? ' checked' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
           ))}
-          <button type="submit">{editingId ? 'Lưu' : 'Thêm'}</button>
-          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); }}>Hủy</button>}
-        </form>
+        </div>
+        <input
+          className="input"
+          style={{ width: 260 }}
+          placeholder="Tìm theo từ, nghĩa, chủ đề..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
-
-      <div className="card">
-        <h2>Import CSV</h2>
-        <form onSubmit={handleImport}>
-          <textarea
-            rows={4}
-            style={{ width: '100%' }}
-            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,segments"
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-          />
-          <button type="submit">Import</button>
-        </form>
-        {importResult && (
-          <div>
-            <p>Đã import: {importResult.imported}</p>
-            {importResult.errors.length > 0 && (
-              <ul>
-                {importResult.errors.map((e, i) => <li key={i}>Dòng {e.line}: {e.reason}</li>)}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="card">
-        <input placeholder="Tìm kiếm..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <table>
+      <div className="card" style={{ padding: 4 }}>
+        <table className="table">
           <thead>
-            <tr><th>Word</th><th>Meaning</th><th>Category</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>Từ</th><th>Loại từ</th><th>Nghĩa</th><th>Chủ đề</th><th>Trạng thái</th><th>Ôn tiếp theo</th><th></th>
+            </tr>
           </thead>
           <tbody>
-            {words.map((w) => (
-              <tr key={w.id}>
-                <td>{w.word}</td>
-                <td>{w.meaning}</td>
-                <td>{w.category}</td>
-                <td>{w.review_state?.[0]?.status}</td>
-                <td>
-                  <button onClick={() => handleEdit(w)}>Sửa</button>
-                  <button onClick={() => handleDelete(w.id)}>Xóa</button>
-                </td>
-              </tr>
-            ))}
+            {words.map((w) => {
+              const state = w.review_state?.[0];
+              const status = state?.status || 'new';
+              return (
+                <tr key={w.id}>
+                  <td style={{ fontWeight: 600 }}>{w.word}</td>
+                  <td style={{ color: 'var(--ink-2)' }}>{w.part_of_speech}</td>
+                  <td>{w.meaning}</td>
+                  <td style={{ color: 'var(--ink-2)' }}>{w.category}</td>
+                  <td><span className={`tag ${STATUS_TAG_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
+                  <td style={{ color: 'var(--ink-2)' }}>{state ? formatNextReview(state.next_review_at) : ''}</td>
+                  <td>
+                    <button className="btn btn-secondary" onClick={() => onEdit(w)}>Sửa</button>{' '}
+                    <button className="btn btn-secondary" onClick={() => handleDelete(w.id)}>Xóa</button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1916,24 +2297,176 @@ Expected: builds successfully.
 
 - [ ] **Step 3: Manual verification**
 
-Run: `vercel dev`, open the Vocabulary tab, add a word via the form, confirm it appears in the table, edit it, delete it, then paste a small CSV and confirm the import summary and table update.
+Run: `vercel dev`, open the Vocabulary tab, confirm the segmented filter and search narrow the table, "Ôn tiếp theo" shows a relative label (not a raw timestamp), "Xóa" removes a row, and "Sửa" switches to the Import tab with the word's fields preloaded (verified together with Task 16).
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/screens/VocabularyScreen.jsx
-git commit -m "feat: implement Vocabulary/Import screen"
+git commit -m "feat: implement Vocabulary screen"
 ```
 
 ---
 
-### Task 16: Frontend — Dashboard screen
+### Task 16: Frontend — Import screen
+
+**Files:**
+- Modify: `src/screens/ImportScreen.jsx`
+
+**Interfaces:**
+- Consumes: `api.createWord()`, `api.updateWord()`, `api.importCsv()` (Task 13).
+- Produces: `ImportScreen({ editingWord, onDone })` — when `editingWord` is set (by Task 15's "Sửa" via `App.jsx`), the manual-entry form preloads its fields and submits to `updateWord` instead of `createWord`; `onDone()` is called after a successful save (clears `editingWord` and returns to Vocabulary, per Task 13's `App.jsx`).
+
+- [ ] **Step 1: Implement `src/screens/ImportScreen.jsx`**
+
+```jsx
+import React, { useEffect, useState } from 'react';
+import { api } from '../api.js';
+
+const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', segments: '' };
+
+const FIELDS = [
+  { key: 'word', label: 'Word', placeholder: 'beautiful' },
+  { key: 'meaning', label: 'Meaning', placeholder: 'đẹp' },
+  { key: 'category', label: 'Category', placeholder: 'appearance' },
+  { key: 'part_of_speech', label: 'Part of speech', placeholder: 'adjective' },
+  { key: 'ipa', label: 'IPA', placeholder: '/ˈbjuːtɪfəl/' },
+  { key: 'segments', label: 'Segments', placeholder: 'beauty|ful' },
+];
+
+export default function ImportScreen({ editingWord, onDone }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [csvText, setCsvText] = useState('');
+  const [importResult, setImportResult] = useState(null);
+
+  useEffect(() => {
+    if (editingWord) {
+      setForm({
+        word: editingWord.word,
+        meaning: editingWord.meaning,
+        category: editingWord.category || '',
+        part_of_speech: editingWord.part_of_speech || '',
+        ipa: editingWord.ipa || '',
+        example: editingWord.example || '',
+        example_vi: editingWord.example_vi || '',
+        segments: editingWord.segments || '',
+      });
+    }
+  }, [editingWord]);
+
+  function handleFieldChange(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (editingWord) {
+      await api.updateWord(editingWord.id, form);
+    } else {
+      await api.createWord(form);
+    }
+    setForm(EMPTY_FORM);
+    onDone();
+  }
+
+  async function handleImport(e) {
+    e.preventDefault();
+    const result = await api.importCsv(csvText);
+    setImportResult(result);
+    setCsvText('');
+  }
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Import vocabulary</h1>
+
+      <div className="card">
+        <div className="seg" style={{ marginBottom: 16 }}>
+          <span className="seg-opt checked">CSV / Excel</span>
+          <span className="seg-opt">Paste text</span>
+          <span className="seg-opt">From clipboard</span>
+        </div>
+        <form onSubmit={handleImport}>
+          <textarea
+            className="input"
+            rows={4}
+            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,segments"
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+          />
+          <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>Import</button>
+        </form>
+        <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 10 }}>
+          CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, segments
+        </div>
+        {importResult && (
+          <div style={{ marginTop: 10 }}>
+            <p>Đã import: {importResult.imported}</p>
+            {importResult.errors.length > 0 && (
+              <ul>
+                {importResult.errors.map((e, i) => <li key={i}>Dòng {e.line}: {e.reason}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      <h3 style={{ fontSize: 16, margin: '0 0 12px' }}>{editingWord ? 'Sửa từ' : 'Hoặc thêm thủ công'}</h3>
+      <form className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} onSubmit={handleSubmit}>
+        {FIELDS.map((f) => (
+          <div key={f.key}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{f.label}</label>
+            <input
+              className="input"
+              placeholder={f.placeholder}
+              value={form[f.key]}
+              onChange={(e) => handleFieldChange(f.key, e.target.value)}
+            />
+          </div>
+        ))}
+        <div style={{ gridColumn: 'span 2' }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Example</label>
+          <input className="input" placeholder="She has a beautiful smile." value={form.example} onChange={(e) => handleFieldChange('example', e.target.value)} />
+        </div>
+        <div style={{ gridColumn: 'span 2' }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Example (VI)</label>
+          <input className="input" placeholder="Cô ấy có nụ cười đẹp." value={form.example_vi} onChange={(e) => handleFieldChange('example_vi', e.target.value)} />
+        </div>
+        <div style={{ gridColumn: 'span 2', display: 'flex', gap: 8 }}>
+          <button type="submit" className="btn btn-primary">Lưu từ</button>
+          {editingWord && <button type="button" className="btn btn-secondary" onClick={onDone}>Hủy</button>}
+        </div>
+      </form>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Verify build**
+
+Run: `npm run build`
+Expected: builds successfully.
+
+- [ ] **Step 3: Manual verification**
+
+Run: `vercel dev`, open Import tab: paste a small CSV and confirm the import summary; fill the manual form and click "Lưu từ", confirm it lands in Vocabulary (Task 15); from Vocabulary click "Sửa" on that word, confirm the Import form preloads its fields with the heading "Sửa từ" and a "Hủy" button, save, and confirm you're returned to Vocabulary with the updated row.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/screens/ImportScreen.jsx
+git commit -m "feat: implement Import screen (CSV import + manual add/edit form)"
+```
+
+---
+
+### Task 17: Frontend — Dashboard screen
 
 **Files:**
 - Modify: `src/screens/DashboardScreen.jsx`
 
 **Interfaces:**
-- Consumes: `api.getDashboard()`, `api.getReviewsChart()` (Task 13).
+- Consumes: `api.getDashboard()`, `api.getReviewsChart()`, `api.getToday()` (Task 13).
 
 - [ ] **Step 1: Implement `src/screens/DashboardScreen.jsx`**
 
@@ -1941,58 +2474,122 @@ git commit -m "feat: implement Vocabulary/Import screen"
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
+const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
+
+function speak(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  window.speechSynthesis.speak(utterance);
+}
+
 export default function DashboardScreen() {
   const [summary, setSummary] = useState(null);
   const [chart, setChart] = useState(null);
+  const [previewCards, setPreviewCards] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     api.getDashboard().then(setSummary);
     api.getReviewsChart(7).then((data) => setChart(data.days));
+    api.getToday().then((data) => setPreviewCards(data.cards));
   }, []);
 
-  if (!summary || !chart) return <div>Đang tải...</div>;
+  if (!summary || !chart || !previewCards) return <div>Đang tải...</div>;
 
   const maxCount = Math.max(1, ...chart.map((d) => d.new_learned + d.reviewed_count));
+  const previewCard = previewCards.length > 0 ? previewCards[previewIndex % previewCards.length] : null;
+  const totalWords = (summary.totals.new || 0) + (summary.totals.learning || 0) + (summary.totals.difficult || 0);
 
   return (
-    <div>
-      <div className="card">
-        <p>New words: {summary.new_learned_today}/{summary.new_limit}</p>
-        <p>Reviews due: {summary.due_count}</p>
-        <p>Streak: {summary.streak} ngày</p>
-        <p>Accuracy: {summary.accuracy === null ? 'N/A' : `${Math.round(summary.accuracy * 100)}%`}</p>
-        <p>Daily goal: {summary.reviewed_today}/{summary.review_limit} reviews</p>
-      </div>
-
-      <div className="card">
-        <h2>7 ngày gần nhất</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 120 }}>
-          {chart.map((d) => (
-            <div key={d.date} style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  height: ((d.new_learned + d.reviewed_count) / maxCount) * 100,
-                  width: 24,
-                  background: '#3b82f6',
-                }}
-              />
-              <div style={{ fontSize: 10 }}>{d.date.slice(5)}</div>
-            </div>
-          ))}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+      <div>
+        <div className="card">
+          <h2 style={{ margin: '0 0 14px', fontSize: 16 }}>Mục tiêu hôm nay</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>
+            <span>Reviews</span><span>{summary.reviewed_today} / {summary.review_limit}</span>
+          </div>
+          <div className="bar-track" style={{ marginBottom: 16 }}>
+            <div className="bar-fill" style={{ width: `${Math.min(100, (summary.reviewed_today / summary.review_limit) * 100)}%` }} />
+          </div>
+          <div style={{ display: 'flex', gap: 24, fontSize: 13, color: 'var(--ink-2)' }}>
+            <div>Tổng số từ <strong style={{ color: 'var(--ink)' }}>{totalWords}</strong></div>
+            <div>New <strong style={{ color: 'var(--sb-dark)' }}>{summary.totals.new || 0}</strong></div>
+            <div>Learning <strong style={{ color: 'var(--ink)' }}>{summary.totals.learning || 0}</strong></div>
+            <div>Difficult <strong style={{ color: 'var(--red)' }}>{summary.totals.difficult || 0}</strong></div>
+          </div>
         </div>
+
+        {previewCard && (
+          <div className="card" style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span className={`tag ${STATUS_TAG_CLASS[previewCard.review_state.status] || 'tag-new'}`}>{previewCard.review_state.status}</span>
+                {previewCard.word.part_of_speech && <span className="tag tag-pos">{previewCard.word.part_of_speech}</span>}
+              </div>
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{(previewIndex % previewCards.length) + 1}/{previewCards.length}</span>
+            </div>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
+                <h1 style={{ fontSize: 38, margin: 0, fontWeight: 800 }}>{previewCard.word.word}</h1>
+                <button className="btn" style={{ borderRadius: '50%', width: 32, height: 32, padding: 0 }} onClick={() => speak(previewCard.word.word)} aria-label="Phát âm">🔊</button>
+              </div>
+              {previewCard.word.ipa && <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{previewCard.word.ipa}</span>}
+            </div>
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{previewCard.word.meaning}</div>
+            </div>
+            {previewCard.word.example && (
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{previewCard.word.example}</div>
+                <div style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--ink-3)' }}>{previewCard.word.example_vi}</div>
+              </div>
+            )}
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setPreviewIndex((i) => i + 1)}>Next</button>
+          </div>
+        )}
       </div>
 
-      <div className="card">
-        <h2>Từ khó / hay quên</h2>
-        <ul>
-          {summary.difficult_words.map((s) => (
-            <li key={s.word_id}>{s.words.word} — Forgotten {s.failure_count}x</li>
-          ))}
-        </ul>
-      </div>
+      <div>
+        <h2 style={{ margin: '0 0 10px', fontSize: 16 }}>Today</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+          <div className="stat"><div className="stat-label">New words</div><div className="stat-value" style={{ color: 'var(--sb-dark)' }}>{summary.new_learned_today}/{summary.new_limit}</div></div>
+          <div className="stat"><div className="stat-label">Reviews due</div><div className="stat-value" style={{ color: 'var(--orange)' }}>{summary.due_count}</div></div>
+          <div className="stat"><div className="stat-label">Streak</div><div className="stat-value" style={{ color: 'var(--green)' }}>{summary.streak}</div></div>
+          <div className="stat"><div className="stat-label">Accuracy</div><div className="stat-value" style={{ color: 'var(--purple)' }}>{summary.accuracy === null ? 'N/A' : `${Math.round(summary.accuracy * 100)}%`}</div></div>
+        </div>
 
-      <div className="card">
-        <p>Tổng số từ: new {summary.totals.new || 0}, learning {summary.totals.learning || 0}, difficult {summary.totals.difficult || 0}</p>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14 }}>Reviews</h3>
+            <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>7 days</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 100 }}>
+            {chart.map((d) => (
+              <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
+                <div style={{ width: '100%', borderRadius: '6px 6px 0 0', background: 'var(--sb-light)', height: `${((d.new_learned + d.reviewed_count) / maxCount) * 100}%` }} />
+                <div style={{ fontSize: 10, color: 'var(--ink-3)' }}>{d.date.slice(5)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Difficult / Forgotten words</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {summary.difficult_words.map((s) => (
+              <div key={s.word_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{s.words.word}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{s.words.meaning}</div>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>Forgotten {s.failure_count}x</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2006,7 +2603,7 @@ Expected: builds successfully.
 
 - [ ] **Step 3: Manual verification**
 
-Run: `vercel dev`, open Dashboard tab, confirm summary numbers, bar chart, and difficult-words list render without errors (zeros/empty list acceptable on a fresh DB).
+Run: `vercel dev`, open Dashboard tab, confirm "Mục tiêu hôm nay" progress bar and counts, the next-card preview card renders (or is omitted if there are no cards today) and "Next" cycles through today's queue without submitting any review, the "Today" stat grid, the 7-day bar chart, and the Difficult/Forgotten list all render without errors (zeros/empty list acceptable on a fresh DB).
 
 - [ ] **Step 4: Commit**
 
@@ -2017,7 +2614,64 @@ git commit -m "feat: implement Dashboard screen"
 
 ---
 
-### Task 17: Vercel + Supabase deployment wiring
+### Task 18: Frontend — Settings screen
+
+**Files:**
+- Modify: `src/screens/SettingsScreen.jsx`
+
+**Interfaces:**
+- Consumes: nothing (static values matching the Global Constraints' hard-coded daily limits).
+
+- [ ] **Step 1: Implement `src/screens/SettingsScreen.jsx`**
+
+```jsx
+import React from 'react';
+
+export default function SettingsScreen() {
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Settings</h1>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Số từ mới tối đa mỗi ngày</label>
+          <input className="input" type="number" value={20} readOnly />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Số lượt ôn tối đa mỗi ngày</label>
+          <input className="input" type="number" value={100} readOnly />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Giọng đọc (TTS)</label>
+          <div className="seg">
+            <span className="seg-opt checked">en-US</span>
+            <span className="seg-opt">en-GB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Verify build**
+
+Run: `npm run build`
+Expected: builds successfully.
+
+- [ ] **Step 3: Manual verification**
+
+Run: `vercel dev`, open Settings tab, confirm the two limit inputs show `20` and `100` and are not editable (typing into them has no effect), and the TTS segmented control shows `en-US` selected and `en-GB` present but non-interactive. Confirm there is no "Xóa toàn bộ dữ liệu" button (excluded from v1 per spec section 9).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/screens/SettingsScreen.jsx
+git commit -m "feat: implement Settings screen"
+```
+
+---
+
+### Task 19: Vercel + Supabase deployment wiring
 
 **Files:**
 - Modify: `.gitignore` (ensure `.vercel`, `node_modules`, `dist` ignored)

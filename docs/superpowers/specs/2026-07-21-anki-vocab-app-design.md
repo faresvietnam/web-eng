@@ -139,29 +139,68 @@ Chuỗi cố định theo `step_index` (0-indexed):
 
 ## 9. UI/UX
 
+UI phải theo đúng mockup hiện hữu ở [`VocabApp.dc.html`](../../../VocabApp.dc.html) (asset gốc: `_ds/`, `support.js`) — layout, copy, và bảng màu bên dưới lấy trực tiếp từ file này. Đây là bản mockup tĩnh (dữ liệu mẫu hard-code); phần "Học phí" — dữ liệu/hành vi thật (fetch API, spaced repetition, v.v.) implement theo mục 1–8, chỉ phần khung nhìn/bố cục lấy theo mockup.
+
+### Bảng màu & thành phần dùng chung (từ mockup)
+- Primary xanh `#2563eb` (nền nhạt `#dbeafe`), tím `#7c3aed` (nhạt `#ede9fe`), xanh lá `#16a34a` (nhạt `#dcfce7`), cam `#d97706` (nhạt `#fef3c7`), đỏ `#dc2626` (nhạt `#fee2e2`).
+- Chữ: ink `#111827`, ink phụ `#4b5563`, ink nhạt `#9ca3af`. Nền trang `#f7f8fa`, nền card `#ffffff`, viền `#e5e7eb`.
+- Font hệ thống (`-apple-system, "Segoe UI", ...`), không dùng UI framework — style plain CSS/inline style như mockup.
+- Card bo góc 14px, viền 1px, shadow rất nhẹ. Nút bo góc 10px (`primary` nền xanh chữ trắng, `secondary` nền trắng viền xám). Input bo góc 10px, focus viền xanh.
+- Tag trạng thái (pill nhỏ): `New` = nền `--sb-light`/chữ `--sb-dark`, `Learning` = nền xám nhạt/chữ ink phụ, `Difficult` = nền `--red-light`/chữ đỏ.
+
+### Top bar
+- Ô tìm kiếm rộng, placeholder "Search words, tags, examples...", gợi ý phím tắt `⌘K` ở góc phải ô.
+- Góc phải: avatar tròn hiển thị chữ viết tắt người dùng (mockup: "VN").
+
 ### Sidebar cố định
-Dashboard, Learn (bắt đầu session hôm nay), Review (badge = số từ due), Vocabulary (word list), Import, Statistics, Settings.
+- Logo + tên app "My Vocab" (subtitle mockup "Learn locally. Master daily." — **cập nhật lại subtitle vì dữ liệu nay lưu trên Supabase, không còn "locally"**, ví dụ "Master vocabulary daily.").
+- 5 mục điều hướng (không có badge số đếm, không có mục Review/Statistics riêng — đã gộp): **Dashboard**, **Learn** (khởi động session Study hôm nay — bao gồm cả từ mới lẫn từ cần ôn, gộp chung), **Vocabulary** (word list), **Import**, **Settings**.
+- Cuối sidebar: 2 card nhỏ —
+  - Card trạng thái dữ liệu: **cập nhật copy so với mockup** (mockup ghi "Backup & Data — All data is stored only on this device", không còn đúng vì dữ liệu lưu trên Supabase cloud) → đổi thành ví dụ "Cloud sync — Dữ liệu được lưu trên Supabase, tự động đồng bộ."
+  - Card "🔥 Daily goal": hiển thị `reviewed_today / review_limit` (từ `GET /api/dashboard`) kèm progress bar — cùng số liệu với "Mục tiêu hôm nay" trên Dashboard, chỉ là bản rút gọn trong sidebar.
 
-### Màn hình Study (Learn/Review)
-- 1 thẻ/lần, góc trên: tag trạng thái (`New`/`Learning`/`Difficult`) + tag `part_of_speech`, số thứ tự `x/tổng số thẻ hôm nay`.
-- Từ hiển thị lớn kèm `ipa`, icon loa phát audio từ (`window.speechSynthesis`, giọng `en-US`).
-- Trắc nghiệm: hiển thị từ/nghĩa + 4 nút đáp án (1 đúng + 3 nhiễu).
-- Nhập đoạn/nhập cả từ: input text, Enter để submit; sai → viền đỏ + rung nhẹ, cho nhập lại; có nút "Xem đáp án" (kích hoạt kết quả `again`).
-- Sau khi trả lời: hiện `meaning`, khối "Word breakdown" nếu có `segments` (hiển thị dạng chip `beauty` + `ful`, không phải ô nhập — chỉ để xem lại cấu tạo từ), câu `example` kèm `example_vi` và icon loa đọc câu ví dụ.
+### Màn hình Learn (Study — thẻ học/ôn)
+- Card căn giữa, max-width ~680px.
+- Góc trên: 2 tag (trạng thái `New`/`Learning`/`Difficult` + `part_of_speech`) bên trái; số thứ tự `x / tổng số thẻ hôm nay` bên phải.
+- Giữa card: từ hiển thị lớn (48px, đậm) + nút tròn phát âm (icon loa, `window.speechSynthesis` giọng `en-US`); dưới đó là `ipa` kèm nút phát âm nhỏ.
+- Vùng bài tập theo `exercise_type` (spec thuật toán ở mục 4/6/7/8, mockup chỉ minh họa layout trắc nghiệm):
+  - `mc_en_vi` / `mc_vi_en`: lưới 2×2 nút đáp án full-width (`opt-btn2`); khi đã trả lời — đáp án đúng tô xanh lá, đáp án sai người dùng chọn tô đỏ, các đáp án còn lại mờ đi (`opacity: 0.5`).
+  - `segment` / `full_type`: input text 1 dòng, Enter để submit; sai → viền đỏ (giữ nguyên hành vi rung nhẹ đã có ở spec cũ), cho nhập lại; nút phụ "Xem đáp án" (kích hoạt kết quả `again`) đặt cạnh input.
+- Sau khi trả lời (`answered = true`), hiện bên dưới, phân tách bằng đường kẻ ngang:
+  - "Meaning (Vietnamese)": nghĩa của từ, chữ đậm.
+  - "Word breakdown" (chỉ khi có `segments`): các chip màu xen kẽ (chip 1 nền xanh dương nhạt, chip 2 nền xanh lá nhạt, dấu `+` ở giữa) kèm dòng chú thích nghĩa từng đoạn nếu có.
+  - "Example sentence": câu ví dụ tiếng Anh (từ vựng chính tô màu xanh dương đậm), câu `example_vi` in nghiêng bên dưới kèm nút loa đọc câu ví dụ.
+  - Nút "Thẻ tiếp theo →" full-width, màu primary, để sang thẻ kế tiếp.
 
-### Màn hình Word List / Import
-- Bảng danh sách từ (word, part_of_speech, meaning, category, status, next_review_at), filter theo status, ô tìm kiếm theo word/meaning/category.
-- Nút "Import CSV": cột `word, meaning, category, part_of_speech, ipa, example, example_vi, segments`; preview trước khi lưu; báo lỗi dòng thiếu `word` hoặc `meaning`, các dòng lỗi bị bỏ qua và liệt kê ra cho người dùng biết. Có nút tải file CSV mẫu (template).
-- Form thêm/sửa/xóa từ thủ công (các cột tương tự CSV).
+### Màn hình Vocabulary (Danh sách từ vựng)
+- Tiêu đề "Danh sách từ vựng".
+- Bộ lọc dạng segmented control (không phải dropdown): "Tất cả" / "New" / "Learning" / "Difficult".
+- Ô tìm kiếm bên phải, placeholder "Tìm theo từ, nghĩa, chủ đề..." (tìm theo `word`/`meaning`/`category`).
+- Bảng trong 1 card, cột: **Từ**, **Loại từ** (`part_of_speech`), **Nghĩa** (`meaning`), **Chủ đề** (`category`), **Trạng thái** (tag màu theo status), **Ôn tiếp theo** — hiển thị dạng người-đọc-được (`Hôm nay` / `10 phút nữa` / `1 ngày nữa` / `3 ngày nữa` / ...), không hiển thị timestamp thô.
+- Form thêm/sửa/xóa từ thủ công vẫn theo mục 10 (API `POST/PUT/DELETE /api/words`), đặt trong màn Import (xem dưới) theo đúng bố cục mockup — Vocabulary chỉ là bảng danh sách + filter + search, không có form ở đây.
+
+### Màn hình Import
+- Tiêu đề "Import vocabulary".
+- Card 1: segmented control 3 lựa chọn "CSV / Excel" / "Paste text" / "From clipboard" (v1 chỉ cần implement "CSV / Excel" theo mục 10; 2 lựa chọn còn lại hiển thị nhưng có thể chưa hoạt động — không mở rộng scope ngoài API `POST /api/words/import` đã đặc tả).
+  - Vùng drag-and-drop viền nét đứt: "Drag & drop a CSV or Excel file here" + link "or click to browse".
+  - Card phụ bên phải "CSV format tip": liệt kê đúng các cột theo mục 10 — `word, meaning, category, part_of_speech, ipa, example, example_vi, segments` — kèm link "↓ Download template.csv" (file mẫu tải về, header đúng các cột trên, không có Excel `.xlsx` trong v1).
+- Card 2 "Hoặc thêm thủ công": form 2 cột — Word, Meaning, Category, Part of speech, IPA, Segments (mỗi ô 1 cột), Example và Example (VI) (mỗi ô full-width 2 cột) — nút "Lưu từ" cuối form. Đây chính là form tạo từ thủ công (`POST /api/words`), đặt trong màn Import thay vì Vocabulary để khớp mockup.
 
 ### Màn hình Dashboard (chi tiết)
-- **Thẻ số liệu hôm nay:** New words (đã học/hạn mức 20), Reviews due (số từ đang chờ ôn), Streak (số ngày liên tiếp có hoạt động học/ôn), Accuracy (% `good`+`hard` trên tổng lượt ôn, tính trên toàn bộ `review_log` hoặc theo khoảng đã chọn).
-- **Daily goal progress bar:** tiến độ số lượt ôn hôm nay so với hạn mức (ví dụ `40/100 reviews`).
-- **Biểu đồ 7 ngày gần nhất:** bar chart số lượt ôn mỗi ngày, lấy từ `daily_progress.reviewed_count` + `new_learned` theo ngày (dùng recharts hoặc chart.js đơn giản).
-- **Difficult / Forgotten words:** danh sách các từ `status = difficult` hoặc `failure_count > 0` gần đây nhất, kèm nhãn số lần quên (`Forgotten Nx`), link "View all" sang Vocabulary đã filter.
-- **Tổng quan:** tổng số từ trong DB, số từ theo từng status (new/learning/difficult).
+- **Cột trái:**
+  - Card "Mục tiêu hôm nay": progress bar `reviewed_today / review_limit` (ví dụ `40 / 100`), bên dưới là dòng tổng quan: Tổng số từ, New, Learning, Difficult (đếm theo `status`).
+  - Card xem trước thẻ tiếp theo (không thay flow Learn, chỉ là bản xem nhanh): tag trạng thái + `part_of_speech`, counter `x/tổng`, từ lớn + phát âm + `ipa`, "Meaning (Vietnamese)", "Word breakdown" (chip), "Example sentence" + `example_vi`, nút "Next" để xoay vòng xem các thẻ mẫu (không tính là đã học, không gọi `POST /api/reviews`).
+- **Cột phải:**
+  - "Today": lưới 2×2 stat-card — **New words** (`new_learned_today`/`new_limit`), **Reviews due** (`due_count`), **Streak** (số ngày), **Accuracy** (%).
+  - Card "Reviews" kèm dropdown "7 days": bar chart số lượt ôn theo ngày, lấy từ `GET /api/dashboard/reviews-chart?days=7`.
+  - Card "Difficult / Forgotten words": danh sách từ `status = difficult` hoặc `failure_count > 0`, mỗi dòng có chấm đỏ + từ + nghĩa + nhãn `Forgotten Nx`; link "View all →" điều hướng sang Vocabulary đã filter theo Difficult.
 
 Để tính Streak, cần thêm cột phụ trợ hoặc suy ra từ `daily_progress`: một ngày được coi là "có hoạt động" nếu `new_learned > 0 OR reviewed_count > 0`; streak = số ngày liên tiếp tính từ hôm nay lùi về trước đều có hoạt động.
+
+### Màn hình Settings (mới, bổ sung theo mockup — trước đây chỉ có tên mục sidebar, chưa có nội dung)
+- Card giới hạn học tập: 2 input số, **read-only** — "Số từ mới tối đa mỗi ngày" (`new_limit = 20`), "Số lượt ôn tối đa mỗi ngày" (`review_limit = 100`). Không cho chỉnh trong v1 (đúng Global Constraints — hạn mức hard-code).
+- "Giọng đọc (TTS)": segmented control `en-US` / `en-GB` hiển thị theo mockup, nhưng **v1 chỉ hỗ trợ `en-US`** (theo mục 9 bản gốc và Global Constraints của plan) — lựa chọn `en-GB` hiển thị nhưng chưa có tác dụng, không mở rộng scope.
+- Mục "Dữ liệu": mockup có nút nguy hiểm "Xóa toàn bộ dữ liệu" — **quyết định: không đưa vào v1** (giữ scope đúng plan hiện tại, YAGNI). Màn Settings v1 không render nút này; có thể bổ sung ở bản sau cùng với endpoint xóa dữ liệu tương ứng.
 
 ## 10. API endpoints (tóm tắt)
 
