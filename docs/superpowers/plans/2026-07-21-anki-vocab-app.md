@@ -78,7 +78,7 @@ index.html
 - Create: `.gitignore` (append, keep existing content)
 
 **Interfaces:**
-- Produces: npm scripts `dev` (`vercel dev`), `build` (`vite build`), `test` (`vitest run`).
+- Produces: npm scripts `dev` (`vite`, frontend only), `build` (`vite build`), `test` (`vitest run`). Run `vercel dev` directly (not via an npm script) for full-stack local dev including `/api` functions — Vercel CLI refuses to start if `package.json`'s `dev` script itself invokes `vercel dev`.
 
 - [ ] **Step 1: Create `package.json`**
 
@@ -87,8 +87,11 @@ index.html
   "name": "anki-vocab-app",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "vite",
     "build": "vite build",
     "test": "vitest run"
   },
@@ -110,14 +113,12 @@ index.html
 ```json
 {
   "buildCommand": "vite build",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "devCommand": "vite",
+  "outputDirectory": "dist"
 }
 ```
+
+Node.js function version is set via `package.json`'s `engines.node` field, not a `functions.runtime` string in `vercel.json` — the older `"runtime": "nodejs20.x"` format is rejected by current Vercel CLI ("Function Runtimes must have a valid version, for example `now-php@1.0.0`" — that format is for community/custom runtimes only).
 
 - [ ] **Step 3: Create `vitest.config.js`**
 
@@ -2894,7 +2895,7 @@ Local-first English vocabulary spaced-repetition app, deployed on Vercel with Su
 1. Create a Supabase project, run `supabase/migrations/0001_init.sql` in the SQL editor.
 2. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase project settings.
 3. `npm install`
-4. `npm run dev` (runs `vercel dev`, serves frontend + `/api` functions locally)
+4. `npm run dev` (frontend only, via Vite) — for the full stack including `/api` functions, run `vercel dev` directly instead (not through an npm script; Vercel CLI refuses to run if `package.json`'s `dev` script itself invokes `vercel dev`)
 5. `npm test` (runs Vitest unit tests for `lib/*.js`)
 
 ## Deploy
