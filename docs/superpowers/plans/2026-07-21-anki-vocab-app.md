@@ -2410,6 +2410,8 @@ export default function ImportScreen({ editingWord, onDone }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [csvText, setCsvText] = useState('');
   const [importResult, setImportResult] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [importError, setImportError] = useState(null);
 
   useEffect(() => {
     if (editingWord) {
@@ -2432,20 +2434,30 @@ export default function ImportScreen({ editingWord, onDone }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (editingWord) {
-      await api.updateWord(editingWord.id, form);
-    } else {
-      await api.createWord(form);
+    setFormError(null);
+    try {
+      if (editingWord) {
+        await api.updateWord(editingWord.id, form);
+      } else {
+        await api.createWord(form);
+      }
+      setForm(EMPTY_FORM);
+      onDone();
+    } catch (err) {
+      setFormError(err.message);
     }
-    setForm(EMPTY_FORM);
-    onDone();
   }
 
   async function handleImport(e) {
     e.preventDefault();
-    const result = await api.importCsv(csvText);
-    setImportResult(result);
-    setCsvText('');
+    setImportError(null);
+    try {
+      const result = await api.importCsv(csvText);
+      setImportResult(result);
+      setCsvText('');
+    } catch (err) {
+      setImportError(err.message);
+    }
   }
 
   return (
@@ -2471,6 +2483,7 @@ export default function ImportScreen({ editingWord, onDone }) {
         <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 10 }}>
           CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, segments
         </div>
+        {importError && <div style={{ color: 'var(--red)', marginTop: 10 }}>{importError}</div>}
         {importResult && (
           <div style={{ marginTop: 10 }}>
             <p>Đã import: {importResult.imported}</p>
@@ -2504,6 +2517,7 @@ export default function ImportScreen({ editingWord, onDone }) {
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Example (VI)</label>
           <input className="input" placeholder="Cô ấy có nụ cười đẹp." value={form.example_vi} onChange={(e) => handleFieldChange('example_vi', e.target.value)} />
         </div>
+        {formError && <div style={{ gridColumn: 'span 2', color: 'var(--red)' }}>{formError}</div>}
         <div style={{ gridColumn: 'span 2', display: 'flex', gap: 8 }}>
           <button type="submit" className="btn btn-primary">Lưu từ</button>
           {editingWord && <button type="button" className="btn btn-secondary" onClick={onDone}>Hủy</button>}
