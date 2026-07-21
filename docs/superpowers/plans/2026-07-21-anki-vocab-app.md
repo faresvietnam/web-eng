@@ -446,7 +446,7 @@ function applyReview({ reviewState, result, now }) {
     return state;
   }
 
-  const inFixedPhase = state.status === 'new' || state.step_index < 8;
+  const inFixedPhase = state.status === 'new' || state.interval_days === 0;
   if (inFixedPhase) {
     if (result === 'again') {
       state.step_index = 1;
