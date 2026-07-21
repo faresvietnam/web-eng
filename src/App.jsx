@@ -1,0 +1,90 @@
+import React, { useEffect, useState } from 'react';
+import { api } from './api.js';
+import DashboardScreen from './screens/DashboardScreen.jsx';
+import StudyScreen from './screens/StudyScreen.jsx';
+import VocabularyScreen from './screens/VocabularyScreen.jsx';
+import ImportScreen from './screens/ImportScreen.jsx';
+import SettingsScreen from './screens/SettingsScreen.jsx';
+
+const TABS = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'learn', label: 'Learn' },
+  { key: 'vocabulary', label: 'Vocabulary' },
+  { key: 'import', label: 'Import' },
+  { key: 'settings', label: 'Settings' },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [editingWord, setEditingWord] = useState(null);
+  const [dailyGoal, setDailyGoal] = useState(null);
+
+  useEffect(() => {
+    api.getDashboard().then(setDailyGoal);
+  }, [activeTab]);
+
+  function handleEditWord(word) {
+    setEditingWord(word);
+    setActiveTab('import');
+  }
+
+  function handleImportDone() {
+    setEditingWord(null);
+    setActiveTab('vocabulary');
+  }
+
+  return (
+    <div className="layout">
+      <nav className="sidebar">
+        <div className="sidebar-brand">
+          <div className="sidebar-logo">V</div>
+          <div>
+            <div className="sidebar-title">My Vocab</div>
+            <div className="sidebar-subtitle">Master vocabulary daily.</div>
+          </div>
+        </div>
+        <div className="sidebar-nav">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              className={`navitem${tab.key === activeTab ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="sidebar-footer">
+          <div className="card sidebar-widget">
+            <div className="sidebar-widget-title">☁️ Cloud sync</div>
+            <div className="sidebar-widget-text">Dữ liệu được lưu trên Supabase, tự động đồng bộ.</div>
+          </div>
+          <div className="card sidebar-widget">
+            <div className="sidebar-widget-title">🔥 Daily goal</div>
+            <div className="sidebar-widget-text">
+              {dailyGoal ? `${dailyGoal.reviewed_today} / ${dailyGoal.review_limit} reviews` : '...'}
+            </div>
+            <div className="bar-track">
+              <div
+                className="bar-fill"
+                style={{ width: `${dailyGoal ? Math.min(100, (dailyGoal.reviewed_today / dailyGoal.review_limit) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </nav>
+      <div className="main">
+        <div className="topbar">
+          <input className="input topbar-search" placeholder="Search words, tags, examples..." />
+        </div>
+        <main className="content">
+          {activeTab === 'dashboard' && <DashboardScreen onViewAllDifficult={() => setActiveTab('vocabulary')} />}
+          {activeTab === 'learn' && <StudyScreen />}
+          {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} />}
+          {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}
+          {activeTab === 'settings' && <SettingsScreen />}
+        </main>
+      </div>
+    </div>
+  );
+}
