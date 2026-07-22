@@ -26,7 +26,7 @@
 - (Áp dụng lên Supabase project `whsyzhsvsmyzdaxqrvoi` qua MCP tool `apply_migration`, không chỉ ghi file local)
 
 **Interfaces:**
-- Produces: cột `words.user_id`, `review_state.user_id`, `review_log.user_id`, `daily_progress.user_id` (uuid, nullable, FK tới `auth.users(id)` on delete cascade). `daily_progress` primary key đổi từ `(date)` thành `(user_id, date)`. RLS policy `"own rows"` trên cả 4 bảng: `using (user_id = auth.uid()) with check (user_id = auth.uid())`.
+- Produces: cột `words.user_id`, `review_state.user_id`, `review_log.user_id`, `daily_progress.user_id` (uuid, nullable, FK tới `auth.users(id)` on delete cascade). `daily_progress` primary key **giữ nguyên** `(date)` ở task này (đổi thành `(user_id, date)` ở Task 10, sau khi backfill). RLS policy `"own rows"` trên cả 4 bảng: `using (user_id = auth.uid()) with check (user_id = auth.uid())`.
 
 - [ ] **Step 1: Viết migration file**
 
@@ -37,14 +37,13 @@ alter table review_state add column user_id uuid references auth.users(id) on de
 alter table review_log add column user_id uuid references auth.users(id) on delete cascade;
 alter table daily_progress add column user_id uuid references auth.users(id) on delete cascade;
 
-alter table daily_progress drop constraint daily_progress_pkey;
-alter table daily_progress add primary key (user_id, date);
-
 create policy "own rows" on words for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on review_state for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on review_log for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on daily_progress for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 ```
+
+`daily_progress` đã có 2 dòng dữ liệu cũ với `user_id` sẽ là NULL — **không** đổi primary key thành `(user_id, date)` ở migration này (Postgres bắt PK phải NOT NULL, sẽ fail ngay vì có dòng NULL). Việc đổi PK dời sang Task 10, sau khi đã backfill `user_id` cho các dòng cũ.
 
 - [ ] **Step 2: Áp dụng migration lên Supabase qua MCP tool**
 
@@ -56,7 +55,7 @@ Expected: tool trả về thành công, không lỗi constraint.
 
 Gọi `list_tables` với `project_id: "whsyzhsvsmyzdaxqrvoi"`, `schemas: ["public"]`, `verbose: true`.
 
-Expected: cả 4 bảng có cột `user_id`; `daily_progress.primary_keys` là `["user_id", "date"]`.
+Expected: cả 4 bảng có cột `user_id`; `daily_progress.primary_keys` vẫn là `["date"]` (chưa đổi ở bước này).
 
 - [ ] **Step 4: Commit file migration**
 
@@ -700,7 +699,12 @@ alter table review_log alter column user_id set default auth.uid();
 
 alter table daily_progress alter column user_id set not null;
 alter table daily_progress alter column user_id set default auth.uid();
+
+alter table daily_progress drop constraint daily_progress_pkey;
+alter table daily_progress add primary key (user_id, date);
 ```
+
+`user_id` chỉ được đổi thành NOT NULL / thêm vào primary key ở bước này (sau khi đã backfill), không phải ở Task 1 — vì lúc Task 1 chạy, `daily_progress` vẫn có 2 dòng dữ liệu cũ với `user_id` NULL, và Postgres bắt cột trong primary key phải NOT NULL.
 
 - [ ] **Step 3: Xác nhận bằng `execute_sql`**
 
@@ -715,6 +719,12 @@ select count(*) from daily_progress where user_id is null;
 ```
 
 Expected: cả 4 dòng đều `0`.
+
+- [ ] **Step 3b: Xác nhận primary key mới bằng `list_tables`**
+
+Gọi `list_tables` với `project_id: "whsyzhsvsmyzdaxqrvoi"`, `schemas: ["public"]`, `verbose: true`.
+
+Expected: `daily_progress.primary_keys` là `["user_id", "date"]`.
 
 - [ ] **Step 4: Lưu lại nội dung migration đã chạy vào file local (đã thay UID thật bằng placeholder để không hard-code UID vào git)**
 
@@ -738,6 +748,9 @@ alter table review_log alter column user_id set default auth.uid();
 
 alter table daily_progress alter column user_id set not null;
 alter table daily_progress alter column user_id set default auth.uid();
+
+alter table daily_progress drop constraint daily_progress_pkey;
+alter table daily_progress add primary key (user_id, date);
 ```
 
 - [ ] **Step 5: Commit**
