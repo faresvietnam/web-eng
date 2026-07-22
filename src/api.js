@@ -1,7 +1,15 @@
+import { supabase } from './supabaseClient.js';
+
 async function request(path, options = {}) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
   const res = await fetch(path, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
