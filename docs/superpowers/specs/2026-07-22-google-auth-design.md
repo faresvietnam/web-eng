@@ -31,9 +31,6 @@ alter table review_state add column user_id uuid references auth.users(id) on de
 alter table review_log add column user_id uuid references auth.users(id) on delete cascade;
 alter table daily_progress add column user_id uuid references auth.users(id) on delete cascade;
 
-alter table daily_progress drop constraint daily_progress_pkey;
-alter table daily_progress add primary key (user_id, date);
-
 create policy "own rows" on words for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on review_state for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on review_log for all using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -44,7 +41,7 @@ create policy "own rows" on daily_progress for all using (user_id = auth.uid()) 
 
 3. Owner đăng nhập Google vào app **một lần** → Supabase tạo `auth.users` row thật với UID thật (không thể fake bằng SQL).
 
-4. Backfill: dùng `execute_sql` tra UID theo email owner trong `auth.users`, chạy `update ... set user_id = '<uid>' where user_id is null` cho cả 4 bảng, sau đó `alter column user_id set not null` và `set default auth.uid()` (đợt migration thứ 2, sau khi đã backfill).
+4. Backfill: dùng `execute_sql` tra UID theo email owner trong `auth.users`, chạy `update ... set user_id = '<uid>' where user_id is null` cho cả 4 bảng, sau đó `alter column user_id set not null` và `set default auth.uid()` (đợt migration thứ 2, sau khi đã backfill). Đổi primary key của `daily_progress` (`drop constraint daily_progress_pkey` + `add primary key (user_id, date)`) cũng thực hiện ở bước này, **sau** backfill — không thể làm ở bước 1 vì Postgres yêu cầu các cột trong primary key phải `not null`, mà `daily_progress` có sẵn 2 row với `user_id` còn NULL trước khi backfill.
 
 ## Backend (Vercel functions)
 
