@@ -33,4 +33,6 @@ export const api = {
   importCsv: (csv) => request('/api/words/import', { method: 'POST', body: JSON.stringify({ csv }) }),
   getDashboard: () => request('/api/dashboard'),
   getReviewsChart: (days = 7) => request(`/api/dashboard/reviews-chart?days=${days}`),
+  getSettings: () => request('/api/settings'),
+  updateSettings: (body) => request('/api/settings', { method: 'PUT', body: JSON.stringify(body) }),
 };
