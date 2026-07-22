@@ -20,6 +20,7 @@ module.exports = async (req, res) => {
     { data: recentLogs, error: recentLogsError },
     { data: allProgress, error: allProgressError },
     { data: difficultWords, error: difficultWordsError },
+    { data: settings, error: settingsError },
   ] = await Promise.all([
     supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
     supabase
@@ -36,6 +37,7 @@ module.exports = async (req, res) => {
       .or('status.eq.difficult,failure_count.gt.0')
       .order('failure_count', { ascending: false })
       .limit(10),
+    supabase.from('user_settings').select('*').maybeSingle(),
   ]);
 
   const queryError =
@@ -44,7 +46,8 @@ module.exports = async (req, res) => {
     statusRowsError ||
     recentLogsError ||
     allProgressError ||
-    difficultWordsError;
+    difficultWordsError ||
+    settingsError;
   if (queryError) {
     res.status(500).json({ error: queryError.message });
     return;
@@ -75,8 +78,8 @@ module.exports = async (req, res) => {
   res.status(200).json({
     new_learned_today: progressToday?.new_learned || 0,
     reviewed_today: progressToday?.reviewed_count || 0,
-    new_limit: 20,
-    review_limit: 100,
+    new_limit: settings?.new_daily_limit ?? 20,
+    review_limit: settings?.review_daily_limit ?? 100,
     due_count: dueCount || 0,
     streak,
     accuracy,
