@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { speak } from '../speak.js';
+import { renderDailyGoalText, dailyGoalProgress } from '../dailyGoal.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
@@ -63,10 +64,10 @@ export default function DashboardScreen({ onViewAllDifficult }) {
         <div className="card">
           <h2 style={{ margin: '0 0 14px', fontSize: 16 }}>Mục tiêu hôm nay</h2>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>
-            <span>Reviews</span><span>{summary.reviewed_today} / {summary.review_limit}</span>
+            <span>Hôm nay</span><span>{renderDailyGoalText(summary)}</span>
           </div>
           <div className="bar-track" style={{ marginBottom: 16 }}>
-            <div className="bar-fill" style={{ width: `${Math.min(100, (summary.reviewed_today / summary.review_limit) * 100)}%` }} />
+            <div className="bar-fill" style={{ width: `${dailyGoalProgress(summary)}%` }} />
           </div>
           <div style={{ display: 'flex', gap: 24, fontSize: 13, color: 'var(--ink-2)' }}>
             <div>Tổng số từ <strong style={{ color: 'var(--ink)' }}>{totalWords}</strong></div>
