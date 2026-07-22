@@ -92,6 +92,27 @@ export default function App() {
               />
             </div>
           </div>
+          <div className="card sidebar-widget" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {session.user.user_metadata?.avatar_url ? (
+              <img
+                src={session.user.user_metadata.avatar_url}
+                alt=""
+                style={{ width: 36, height: 36, borderRadius: '50%', flex: 'none' }}
+              />
+            ) : (
+              <div className="sidebar-logo">
+                {(session.user.user_metadata?.full_name || session.user.email || '?')[0].toUpperCase()}
+              </div>
+            )}
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {session.user.user_metadata?.full_name || session.user.email}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {session.user.email}
+              </div>
+            </div>
+          </div>
           <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
             Đăng xuất
           </button>
