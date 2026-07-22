@@ -1,5 +1,5 @@
 create table user_settings (
-  user_id uuid primary key references auth.users(id) on delete cascade,
+  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
   new_daily_limit integer not null default 20,
   review_daily_limit integer not null default 100
 );
