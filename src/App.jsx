@@ -7,6 +7,7 @@ import ImportScreen from './screens/ImportScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 import { supabase } from './supabaseClient.js';
 import LoginScreen from './screens/LoginScreen.jsx';
+import { renderDailyGoalText, dailyGoalProgress } from './dailyGoal.js';
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -15,28 +16,6 @@ const TABS = [
   { key: 'import', label: 'Import' },
   { key: 'settings', label: 'Settings' },
 ];
-
-function dailyGoalStats(dailyGoal) {
-  const remainingReview = Math.max(0, Math.min(dailyGoal.due_count, dailyGoal.review_limit - dailyGoal.reviewed_today));
-  const remainingNew = Math.max(0, Math.min(dailyGoal.totals.new || 0, dailyGoal.new_limit - dailyGoal.new_learned_today));
-  const doneToday = dailyGoal.reviewed_today + dailyGoal.new_learned_today;
-  const totalToday = doneToday + remainingReview + remainingNew;
-  return { remainingReview, remainingNew, doneToday, totalToday };
-}
-
-function renderDailyGoalText(dailyGoal) {
-  if (!dailyGoal) return '...';
-  const { remainingReview, remainingNew, doneToday, totalToday } = dailyGoalStats(dailyGoal);
-  if (remainingReview + remainingNew === 0) return 'Đã hoàn thành hôm nay! 🎉';
-  return `${doneToday} / ${totalToday} việc`;
-}
-
-function dailyGoalProgress(dailyGoal) {
-  if (!dailyGoal) return 0;
-  const { remainingReview, remainingNew, doneToday, totalToday } = dailyGoalStats(dailyGoal);
-  if (remainingReview + remainingNew === 0) return 100;
-  return Math.min(100, (doneToday / totalToday) * 100);
-}
 
 export default function App() {
   const [session, setSession] = useState(undefined);
