@@ -30,34 +30,26 @@ module.exports = async (req, res) => {
   const wasNew = reviewState.status === 'new';
   const nextState = applyReview({ reviewState, result, now });
 
-  const { error: updateError } = await supabase
-    .from('review_state')
-    .update(nextState)
-    .eq('word_id', wordId);
-  if (updateError) {
-    res.status(500).json({ error: updateError.message });
-    return;
-  }
-
-  const { error: logError } = await supabase.from('review_log').insert({
-    word_id: wordId,
-    reviewed_at: now.toISOString(),
-    result,
-    exercise_type,
-  });
-  if (logError) {
-    res.status(500).json({ error: logError.message });
-    return;
-  }
-
   const today = now.toISOString().slice(0, 10);
-  const { data: progress, error: progressError } = await supabase
-    .from('daily_progress')
-    .select('*')
-    .eq('date', today)
-    .maybeSingle();
-  if (progressError) {
-    res.status(500).json({ error: progressError.message });
+
+  const [
+    { error: updateError },
+    { error: logError },
+    { data: progress, error: progressError },
+  ] = await Promise.all([
+    supabase.from('review_state').update(nextState).eq('word_id', wordId),
+    supabase.from('review_log').insert({
+      word_id: wordId,
+      reviewed_at: now.toISOString(),
+      result,
+      exercise_type,
+    }),
+    supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
+  ]);
+
+  const stepError = updateError || logError || progressError;
+  if (stepError) {
+    res.status(500).json({ error: stepError.message });
     return;
   }
 

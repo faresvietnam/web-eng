@@ -10,59 +10,51 @@ module.exports = async (req, res) => {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  const { data: progressToday, error: progressTodayError } = await supabase
-    .from('daily_progress')
-    .select('*')
-    .eq('date', today)
-    .maybeSingle();
-  if (progressTodayError) {
-    res.status(500).json({ error: progressTodayError.message });
+  const [
+    { data: progressToday, error: progressTodayError },
+    { count: dueCount, error: dueCountError },
+    { data: statusRows, error: statusRowsError },
+    { data: recentLogs, error: recentLogsError },
+    { data: allProgress, error: allProgressError },
+    { data: difficultWords, error: difficultWordsError },
+  ] = await Promise.all([
+    supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
+    supabase
+      .from('review_state')
+      .select('word_id', { count: 'exact', head: true })
+      .neq('status', 'new')
+      .lte('next_review_at', now.toISOString()),
+    supabase.from('review_state').select('status'),
+    supabase.from('review_log').select('result').order('reviewed_at', { ascending: false }).limit(200),
+    supabase.from('daily_progress').select('*').order('date', { ascending: false }).limit(60),
+    supabase
+      .from('review_state')
+      .select('*, words(word, meaning)')
+      .or('status.eq.difficult,failure_count.gt.0')
+      .order('failure_count', { ascending: false })
+      .limit(10),
+  ]);
+
+  const queryError =
+    progressTodayError ||
+    dueCountError ||
+    statusRowsError ||
+    recentLogsError ||
+    allProgressError ||
+    difficultWordsError;
+  if (queryError) {
+    res.status(500).json({ error: queryError.message });
     return;
   }
 
-  const { count: dueCount, error: dueCountError } = await supabase
-    .from('review_state')
-    .select('word_id', { count: 'exact', head: true })
-    .neq('status', 'new')
-    .lte('next_review_at', now.toISOString());
-  if (dueCountError) {
-    res.status(500).json({ error: dueCountError.message });
-    return;
-  }
-
-  const { data: statusRows, error: statusRowsError } = await supabase
-    .from('review_state')
-    .select('status');
-  if (statusRowsError) {
-    res.status(500).json({ error: statusRowsError.message });
-    return;
-  }
   const totals = { new: 0, learning: 0, difficult: 0 };
   (statusRows || []).forEach((row) => {
     totals[row.status] = (totals[row.status] || 0) + 1;
   });
 
-  const { data: recentLogs, error: recentLogsError } = await supabase
-    .from('review_log')
-    .select('result')
-    .order('reviewed_at', { ascending: false })
-    .limit(200);
-  if (recentLogsError) {
-    res.status(500).json({ error: recentLogsError.message });
-    return;
-  }
   const goodOrHard = (recentLogs || []).filter((l) => l.result === 'good' || l.result === 'hard').length;
   const accuracy = recentLogs && recentLogs.length > 0 ? goodOrHard / recentLogs.length : null;
 
-  const { data: allProgress, error: allProgressError } = await supabase
-    .from('daily_progress')
-    .select('*')
-    .order('date', { ascending: false })
-    .limit(60);
-  if (allProgressError) {
-    res.status(500).json({ error: allProgressError.message });
-    return;
-  }
   const byDate = new Map((allProgress || []).map((p) => [p.date, p]));
   let streak = 0;
   for (let i = 0; i < 60; i++) {
@@ -75,17 +67,6 @@ module.exports = async (req, res) => {
     } else {
       break;
     }
-  }
-
-  const { data: difficultWords, error: difficultWordsError } = await supabase
-    .from('review_state')
-    .select('*, words(word, meaning)')
-    .or('status.eq.difficult,failure_count.gt.0')
-    .order('failure_count', { ascending: false })
-    .limit(10);
-  if (difficultWordsError) {
-    res.status(500).json({ error: difficultWordsError.message });
-    return;
   }
 
   res.status(200).json({
