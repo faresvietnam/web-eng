@@ -1,5 +1,6 @@
 {
   "buildCommand": "vite build",
   "devCommand": "vite",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "regions": ["sin1"]
 }

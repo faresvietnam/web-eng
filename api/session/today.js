@@ -12,32 +12,23 @@ module.exports = async (req, res) => {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  const { data: dailyProgress, error: dailyProgressError } = await supabase
-    .from('daily_progress')
-    .select('*')
-    .eq('date', today)
-    .maybeSingle();
-  if (dailyProgressError) {
-    res.status(500).json({ error: dailyProgressError.message });
-    return;
-  }
+  const [
+    { data: dailyProgress, error: dailyProgressError },
+    { data: dueStates, error: dueError },
+    { data: newStates, error: newError },
+  ] = await Promise.all([
+    supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
+    supabase
+      .from('review_state')
+      .select('*, words(*)')
+      .neq('status', 'new')
+      .lte('next_review_at', now.toISOString()),
+    supabase.from('review_state').select('*, words(*)').eq('status', 'new'),
+  ]);
 
-  const { data: dueStates, error: dueError } = await supabase
-    .from('review_state')
-    .select('*, words(*)')
-    .neq('status', 'new')
-    .lte('next_review_at', now.toISOString());
-  if (dueError) {
-    res.status(500).json({ error: dueError.message });
-    return;
-  }
-
-  const { data: newStates, error: newError } = await supabase
-    .from('review_state')
-    .select('*, words(*)')
-    .eq('status', 'new');
-  if (newError) {
-    res.status(500).json({ error: newError.message });
+  const queryError = dailyProgressError || dueError || newError;
+  if (queryError) {
+    res.status(500).json({ error: queryError.message });
     return;
   }
 
