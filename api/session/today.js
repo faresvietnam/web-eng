@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
     { data: dailyProgress, error: dailyProgressError },
     { data: dueStates, error: dueError },
     { data: newStates, error: newError },
+    { data: settings, error: settingsError },
   ] = await Promise.all([
     supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
     supabase
@@ -27,9 +28,10 @@ module.exports = async (req, res) => {
       .neq('status', 'new')
       .lte('next_review_at', now.toISOString()),
     supabase.from('review_state').select('*, words(*)').eq('status', 'new'),
+    supabase.from('user_settings').select('*').maybeSingle(),
   ]);
 
-  const queryError = dailyProgressError || dueError || newError;
+  const queryError = dailyProgressError || dueError || newError || settingsError;
   if (queryError) {
     res.status(500).json({ error: queryError.message });
     return;
@@ -40,6 +42,8 @@ module.exports = async (req, res) => {
     newWordStates: newStates,
     dailyProgress: dailyProgress || { new_learned: 0, reviewed_count: 0 },
     now,
+    newDailyLimit: settings?.new_daily_limit ?? 20,
+    reviewDailyLimit: settings?.review_daily_limit ?? 100,
   });
 
   const cards = queue.map((state) => ({

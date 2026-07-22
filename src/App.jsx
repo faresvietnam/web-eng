@@ -16,6 +16,28 @@ const TABS = [
   { key: 'settings', label: 'Settings' },
 ];
 
+function dailyGoalStats(dailyGoal) {
+  const remainingReview = Math.max(0, Math.min(dailyGoal.due_count, dailyGoal.review_limit - dailyGoal.reviewed_today));
+  const remainingNew = Math.max(0, Math.min(dailyGoal.totals.new || 0, dailyGoal.new_limit - dailyGoal.new_learned_today));
+  const doneToday = dailyGoal.reviewed_today + dailyGoal.new_learned_today;
+  const totalToday = doneToday + remainingReview + remainingNew;
+  return { remainingReview, remainingNew, doneToday, totalToday };
+}
+
+function renderDailyGoalText(dailyGoal) {
+  if (!dailyGoal) return '...';
+  const { remainingReview, remainingNew, doneToday, totalToday } = dailyGoalStats(dailyGoal);
+  if (remainingReview + remainingNew === 0) return 'Đã hoàn thành hôm nay! 🎉';
+  return `${doneToday} / ${totalToday} việc`;
+}
+
+function dailyGoalProgress(dailyGoal) {
+  if (!dailyGoal) return 0;
+  const { remainingReview, remainingNew, doneToday, totalToday } = dailyGoalStats(dailyGoal);
+  if (remainingReview + remainingNew === 0) return 100;
+  return Math.min(100, (doneToday / totalToday) * 100);
+}
+
 export default function App() {
   const [session, setSession] = useState(undefined);
 
@@ -82,14 +104,9 @@ export default function App() {
           </div>
           <div className="card sidebar-widget">
             <div className="sidebar-widget-title">🔥 Daily goal</div>
-            <div className="sidebar-widget-text">
-              {dailyGoal ? `${dailyGoal.reviewed_today} / ${dailyGoal.review_limit} reviews` : '...'}
-            </div>
+            <div className="sidebar-widget-text">{renderDailyGoalText(dailyGoal)}</div>
             <div className="bar-track">
-              <div
-                className="bar-fill"
-                style={{ width: `${dailyGoal ? Math.min(100, (dailyGoal.reviewed_today / dailyGoal.review_limit) * 100) : 0}%` }}
-              />
+              <div className="bar-fill" style={{ width: `${dailyGoalProgress(dailyGoal)}%` }} />
             </div>
           </div>
           <div className="card sidebar-widget" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

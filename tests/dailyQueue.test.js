@@ -21,6 +21,8 @@ describe('buildDailyQueue', () => {
       newWordStates: [fresh(2)],
       dailyProgress: { new_learned: 0, reviewed_count: 0 },
       now: NOW,
+      newDailyLimit: 20,
+      reviewDailyLimit: 100,
     });
     expect(queue.map((s) => s.word_id)).toEqual([1, 2]);
   });
@@ -35,29 +37,48 @@ describe('buildDailyQueue', () => {
       newWordStates: [],
       dailyProgress: { new_learned: 0, reviewed_count: 0 },
       now: NOW,
+      newDailyLimit: 20,
+      reviewDailyLimit: 100,
     });
     expect(queue.map((s) => s.word_id)).toEqual([3, 2, 1]);
   });
 
-  it('caps review count at 100 minus reviewed_count today', () => {
+  it('caps review count at reviewDailyLimit minus reviewed_count today', () => {
     const dueReviewStates = Array.from({ length: 5 }, (_, i) => due(i + 1, 0, '2026-07-20T00:00:00.000Z'));
     const queue = buildDailyQueue({
       dueReviewStates,
       newWordStates: [],
       dailyProgress: { new_learned: 0, reviewed_count: 98 },
       now: NOW,
+      newDailyLimit: 20,
+      reviewDailyLimit: 100,
     });
     expect(queue.length).toBe(2);
   });
 
-  it('caps new words at 20 minus new_learned today, ordered by word_id', () => {
+  it('caps new words at newDailyLimit minus new_learned today, ordered by word_id', () => {
     const newWordStates = [fresh(3), fresh(1), fresh(2)];
     const queue = buildDailyQueue({
       dueReviewStates: [],
       newWordStates,
       dailyProgress: { new_learned: 19, reviewed_count: 0 },
       now: NOW,
+      newDailyLimit: 20,
+      reviewDailyLimit: 100,
     });
     expect(queue.map((s) => s.word_id)).toEqual([1]);
+  });
+
+  it('respects a custom reviewDailyLimit smaller than the default', () => {
+    const dueReviewStates = [due(1, 0, '2026-07-20T00:00:00.000Z'), due(2, 0, '2026-07-20T00:00:00.000Z')];
+    const queue = buildDailyQueue({
+      dueReviewStates,
+      newWordStates: [],
+      dailyProgress: { new_learned: 0, reviewed_count: 0 },
+      now: NOW,
+      newDailyLimit: 20,
+      reviewDailyLimit: 1,
+    });
+    expect(queue.length).toBe(1);
   });
 });
