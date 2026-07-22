@@ -1,4 +1,5 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
+const { requireUser } = require('../../lib/auth');
 const { parseWordsCsv } = require('../../lib/csv');
 
 module.exports = async (req, res) => {
@@ -6,6 +7,9 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+
+  const token = requireUser(req, res);
+  if (!token) return;
 
   const csvText = typeof req.body === 'string' ? req.body : req.body?.csv;
   if (!csvText) {
@@ -19,7 +23,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseClient(token);
   const now = new Date().toISOString();
 
   const { data: inserted, error: insertError } = await supabase.from('words').insert(rows).select();

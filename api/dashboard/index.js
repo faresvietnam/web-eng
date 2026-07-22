@@ -1,4 +1,5 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
+const { requireUser } = require('../../lib/auth');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -6,7 +7,9 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const supabase = getSupabaseClient();
+  const token = requireUser(req, res);
+  if (!token) return;
+  const supabase = getSupabaseClient(token);
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
