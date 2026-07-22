@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { speak } from '../speak.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
-
-function speak(text) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US';
-  window.speechSynthesis.speak(utterance);
-}
 
 export default function DashboardScreen({ onViewAllDifficult }) {
   const [summary, setSummary] = useState(null);
@@ -25,6 +20,12 @@ export default function DashboardScreen({ onViewAllDifficult }) {
   useEffect(() => {
     api.getReviewsChart(chartDays).then((data) => setChart(data.days)).catch((err) => setError(err.message));
   }, [chartDays]);
+
+  useEffect(() => {
+    if (!previewCards || previewCards.length === 0) return;
+    const card = previewCards[previewIndex % previewCards.length];
+    speak(card.word.word);
+  }, [previewCards, previewIndex]);
 
   if (error) return <div className="card" style={{ color: 'var(--red)' }}>Không tải được dashboard: {error}</div>;
   if (!summary || !chart || !previewCards) return <div>Đang tải...</div>;
