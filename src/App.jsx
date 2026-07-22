@@ -5,6 +5,8 @@ import StudyScreen from './screens/StudyScreen.jsx';
 import VocabularyScreen from './screens/VocabularyScreen.jsx';
 import ImportScreen from './screens/ImportScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
+import { supabase } from './supabaseClient.js';
+import LoginScreen from './screens/LoginScreen.jsx';
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -15,13 +17,25 @@ const TABS = [
 ];
 
 export default function App() {
+  const [session, setSession] = useState(undefined);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [editingWord, setEditingWord] = useState(null);
   const [dailyGoal, setDailyGoal] = useState(null);
 
   useEffect(() => {
-    api.getDashboard().then(setDailyGoal);
-  }, [activeTab]);
+    if (session) {
+      api.getDashboard().then(setDailyGoal);
+    }
+  }, [activeTab, session]);
 
   function handleEditWord(word) {
     setEditingWord(word);
@@ -31,6 +45,13 @@ export default function App() {
   function handleImportDone() {
     setEditingWord(null);
     setActiveTab('vocabulary');
+  }
+
+  if (session === undefined) {
+    return null;
+  }
+  if (!session) {
+    return <LoginScreen />;
   }
 
   return (
@@ -71,6 +92,9 @@ export default function App() {
               />
             </div>
           </div>
+          <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
+            Đăng xuất
+          </button>
         </div>
       </nav>
       <div className="main">
