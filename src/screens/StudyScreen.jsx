@@ -136,7 +136,8 @@ export default function StudyScreen() {
     setAnswered(true);
   }
 
-  const showWordHeading = answered || exercise_type === 'mc_en_vi';
+  const isDifficultCopy = exercise_type === 'full_type' && status === 'difficult';
+  const showWordHeading = answered || exercise_type === 'mc_en_vi' || isDifficultCopy;
 
   return (
     <div className="card" style={{ maxWidth: 680, margin: '0 auto', padding: '28px 32px' }}>
@@ -223,7 +224,7 @@ export default function StudyScreen() {
 
       {!answered && exercise_type === 'full_type' && (
         <form onSubmit={handleFullWordSubmit} style={{ marginBottom: 24 }}>
-          <p>Nhập từ tiếng Anh cho nghĩa: "{word.meaning}"</p>
+          <p>{isDifficultCopy ? 'Chép lại từ tiếng Anh:' : `Nhập từ tiếng Anh cho nghĩa: "${word.meaning}"`}</p>
           <input
             className={`input${inputError ? ' input-error' : ''}`}
             value={textInput}
@@ -232,12 +233,14 @@ export default function StudyScreen() {
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="submit" className="btn btn-primary">Enter</button>
-            <button type="button" className="btn btn-secondary" onClick={handleShowAnswer}>Xem đáp án</button>
+            {!isDifficultCopy && (
+              <button type="button" className="btn btn-secondary" onClick={handleShowAnswer}>Xem đáp án</button>
+            )}
           </div>
         </form>
       )}
 
-      {answered && (
+      {(answered || isDifficultCopy) && (
         <div>
           <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
@@ -268,9 +271,11 @@ export default function StudyScreen() {
               </div>
             </div>
           )}
-
-          <button className="btn btn-primary" style={{ width: '100%' }} onClick={goNext}>Thẻ tiếp theo →</button>
         </div>
+      )}
+
+      {answered && (
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={goNext}>Thẻ tiếp theo →</button>
       )}
     </div>
   );
