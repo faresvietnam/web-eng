@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { speak } from '../speak.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
-
-function speak(text) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US';
-  window.speechSynthesis.speak(utterance);
-}
 
 function buildMcOptions(correctWord, pool, byField) {
   const others = pool.filter((w) => w.id !== correctWord.id);
@@ -65,6 +60,23 @@ export default function StudyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
+  // The word is the question itself only for mc_en_vi — auto-read it as soon
+  // as the question appears.
+  useEffect(() => {
+    if (word && exercise_type === 'mc_en_vi') speak(word.word);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word]);
+
+  // For segment/full_type, the word only appears once revealed (after a
+  // correct submit or "Xem đáp án") — read it at that point. mc_vi_en is
+  // handled separately in handleMcChoice (reads the chosen option instead).
+  useEffect(() => {
+    if (answered && (exercise_type === 'segment' || exercise_type === 'full_type')) {
+      speak(word.word);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered]);
+
   if (cards === null) return <div>Đang tải...</div>;
   if (cards.length === 0) return <div>Không có thẻ nào cần học hôm nay 🎉</div>;
   if (index >= cards.length) return <div>Đã hoàn thành hàng đợi hôm nay 🎉</div>;
@@ -88,6 +100,10 @@ export default function StudyScreen() {
     setSelectedId(choiceId);
     setOutcome(choiceId === word.id ? 'good' : 'again');
     setAnswered(true);
+    if (exercise_type === 'mc_vi_en') {
+      const chosen = mcOptions.find((opt) => opt.id === choiceId);
+      if (chosen) speak(chosen.label);
+    }
   }
 
   function handleSegmentSubmit(e) {
