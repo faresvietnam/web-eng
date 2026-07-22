@@ -4,6 +4,26 @@ import { speak } from '../speak.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
+function sortForPreview(words) {
+  const now = Date.now();
+  return [...words].sort((a, b) => {
+    const as = a.review_state;
+    const bs = b.review_state;
+    const aDue = as.status !== 'new' && new Date(as.next_review_at).getTime() <= now;
+    const bDue = bs.status !== 'new' && new Date(bs.next_review_at).getTime() <= now;
+    if (aDue !== bDue) return aDue ? -1 : 1;
+    if (aDue && bDue) {
+      if (bs.failure_count !== as.failure_count) return bs.failure_count - as.failure_count;
+      return new Date(as.next_review_at) - new Date(bs.next_review_at);
+    }
+    const aNew = as.status === 'new';
+    const bNew = bs.status === 'new';
+    if (aNew !== bNew) return aNew ? -1 : 1;
+    if (aNew && bNew) return a.id - b.id;
+    return new Date(as.next_review_at) - new Date(bs.next_review_at);
+  });
+}
+
 export default function DashboardScreen({ onViewAllDifficult }) {
   const [summary, setSummary] = useState(null);
   const [chart, setChart] = useState(null);
@@ -14,7 +34,10 @@ export default function DashboardScreen({ onViewAllDifficult }) {
 
   useEffect(() => {
     api.getDashboard().then(setSummary).catch((err) => setError(err.message));
-    api.getToday().then((data) => setPreviewCards(data.cards)).catch((err) => setError(err.message));
+    api.getWords({}).then((data) => {
+      const cards = sortForPreview(data.words).map((w) => ({ word: w, review_state: w.review_state }));
+      setPreviewCards(cards);
+    }).catch((err) => setError(err.message));
   }, []);
 
   useEffect(() => {
