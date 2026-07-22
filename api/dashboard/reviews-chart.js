@@ -1,4 +1,5 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
+const { requireUser } = require('../../lib/auth');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -7,7 +8,9 @@ module.exports = async (req, res) => {
   }
 
   const days = Math.max(1, Math.floor(Number(req.query.days)) || 7);
-  const supabase = getSupabaseClient();
+  const token = requireUser(req, res);
+  if (!token) return;
+  const supabase = getSupabaseClient(token);
   const now = new Date();
   const since = new Date(now);
   since.setDate(since.getDate() - (days - 1));

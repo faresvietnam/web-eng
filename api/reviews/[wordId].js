@@ -1,4 +1,5 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
+const { requireUser } = require('../../lib/auth');
 const { applyReview } = require('../../lib/scheduler');
 
 module.exports = async (req, res) => {
@@ -14,7 +15,9 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const supabase = getSupabaseClient();
+  const token = requireUser(req, res);
+  if (!token) return;
+  const supabase = getSupabaseClient(token);
   const now = new Date();
 
   const { data: reviewState, error: fetchError } = await supabase
