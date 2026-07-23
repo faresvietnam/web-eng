@@ -69,11 +69,7 @@ export default function StudyScreen({ onRootClick }) {
   const status = card && card.review_state ? card.review_state.status : 'new';
   const parts = useMemo(() => {
     if (!word) return [];
-    const list = [];
-    if (word.prefix) list.push({ type: 'prefix', text: word.prefix.prefix });
-    if (word.root) list.push({ type: 'root', text: word.root.root });
-    if (word.suffix) list.push({ type: 'suffix', text: word.suffix.suffix });
-    return list;
+    return (word.word_components || []).map((wc) => ({ type: wc.component.component_type, text: wc.component.text }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
