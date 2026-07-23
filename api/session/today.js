@@ -3,6 +3,7 @@ const { requireUser } = require('../../lib/auth');
 const { buildDailyQueue } = require('../../lib/dailyQueue');
 const { pickExerciseType } = require('../../lib/exerciseType');
 const { hasUsableSentence } = require('../../lib/sentenceBlank');
+const { attachWordType } = require('../../lib/wordType');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -16,7 +17,7 @@ module.exports = async (req, res) => {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  const wordsSelect = '*, prefix:prefixes(*), root:roots(*), suffix:suffixes(*)';
+  const wordsSelect = '*, word_components(position, component:components(*))';
 
   const [
     { data: dailyProgress, error: dailyProgressError },
@@ -49,16 +50,19 @@ module.exports = async (req, res) => {
     reviewDailyLimit: settings?.review_daily_limit ?? 100,
   });
 
-  const cards = queue.map((state) => ({
-    word: state.words,
-    review_state: state,
-    exercise_type: pickExerciseType({
-      status: state.status,
-      correct_count: state.correct_count,
-      hasParts: Boolean(state.words.prefix_id || state.words.root_id || state.words.suffix_id),
-      hasExample: hasUsableSentence(state.words.example, state.words.word),
-    }),
-  }));
+  const cards = queue.map((state) => {
+    const word = attachWordType(state.words);
+    return {
+      word,
+      review_state: state,
+      exercise_type: pickExerciseType({
+        status: state.status,
+        correct_count: state.correct_count,
+        hasParts: word.word_components.length > 0,
+        hasExample: hasUsableSentence(state.words.example, state.words.word),
+      }),
+    };
+  });
 
   res.status(200).json({ cards, total: cards.length });
 };

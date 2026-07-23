@@ -3,19 +3,22 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
 const SECTIONS = [
-  { key: 'prefix', label: 'Tiền tố', title: 'Prefix (tiền tố)', column: 'prefix', listKey: 'prefixes', get: api.getPrefixes, create: api.createPrefix, update: api.updatePrefix, remove: api.deletePrefix },
-  { key: 'root', label: 'Gốc từ', title: 'Root (gốc từ)', column: 'root', listKey: 'roots', get: api.getRoots, create: api.createRoot, update: api.updateRoot, remove: api.deleteRoot },
-  { key: 'suffix', label: 'Hậu tố', title: 'Suffix (hậu tố)', column: 'suffix', listKey: 'suffixes', get: api.getSuffixes, create: api.createSuffix, update: api.updateSuffix, remove: api.deleteSuffix },
+  { type: 'prefix', label: 'Tiền tố', title: 'Prefix (tiền tố)' },
+  { type: 'root', label: 'Gốc từ', title: 'Root (gốc từ)' },
+  { type: 'suffix', label: 'Hậu tố', title: 'Suffix (hậu tố)' },
+  { type: 'combining_form', label: 'Dạng kết hợp', title: 'Combining form (dạng kết hợp)' },
 ];
 
 function PartTable({ section }) {
   const [items, setItems] = useState([]);
   const [newText, setNewText] = useState('');
   const [newMeaning, setNewMeaning] = useState('');
+  const [newRootSubtype, setNewRootSubtype] = useState('');
   const [error, setError] = useState(null);
+  const isRoot = section.type === 'root';
 
   function reload() {
-    section.get().then((data) => setItems(data[section.listKey])).catch((err) => setError(err.message));
+    api.getComponents(section.type).then((data) => setItems(data.components)).catch((err) => setError(err.message));
   }
 
   useEffect(reload, []);
@@ -24,9 +27,15 @@ function PartTable({ section }) {
     e.preventDefault();
     setError(null);
     try {
-      await section.create({ [section.column]: newText, meaning: newMeaning });
+      await api.createComponent({
+        component_type: section.type,
+        text: newText,
+        meaning: newMeaning,
+        root_subtype: isRoot && newRootSubtype ? newRootSubtype : null,
+      });
       setNewText('');
       setNewMeaning('');
+      setNewRootSubtype('');
       reload();
     } catch (err) {
       setError(err.message);
@@ -35,7 +44,26 @@ function PartTable({ section }) {
 
   async function handleMeaningBlur(item, meaning) {
     try {
-      await section.update(item.id, { [section.column]: item[section.column], meaning });
+      await api.updateComponent(item.id, {
+        component_type: section.type,
+        text: item.text,
+        meaning,
+        root_subtype: item.root_subtype,
+      });
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleRootSubtypeChange(item, rootSubtype) {
+    try {
+      await api.updateComponent(item.id, {
+        component_type: section.type,
+        text: item.text,
+        meaning: item.meaning,
+        root_subtype: rootSubtype || null,
+      });
       reload();
     } catch (err) {
       setError(err.message);
@@ -44,7 +72,7 @@ function PartTable({ section }) {
 
   async function handleDelete(id) {
     try {
-      await section.remove(id);
+      await api.deleteComponent(id);
       reload();
     } catch (err) {
       setError(err.message);
@@ -57,12 +85,12 @@ function PartTable({ section }) {
       {error && <div style={{ color: 'var(--red)', marginBottom: 10 }}>{error}</div>}
       <table className="table">
         <thead>
-          <tr><th>{section.label}</th><th>Nghĩa</th><th></th></tr>
+          <tr><th>{section.label}</th><th>Nghĩa</th>{isRoot && <th>Loại</th>}<th></th></tr>
         </thead>
         <tbody>
           {items.map((item) => (
             <tr key={item.id}>
-              <td style={{ fontWeight: 600 }}>{item[section.column]}</td>
+              <td style={{ fontWeight: 600 }}>{item.text}</td>
               <td>
                 <input
                   className="input"
@@ -70,6 +98,19 @@ function PartTable({ section }) {
                   onBlur={(e) => handleMeaningBlur(item, e.target.value)}
                 />
               </td>
+              {isRoot && (
+                <td>
+                  <select
+                    className="input"
+                    defaultValue={item.root_subtype || ''}
+                    onChange={(e) => handleRootSubtypeChange(item, e.target.value)}
+                  >
+                    <option value="">—</option>
+                    <option value="free_root">Free</option>
+                    <option value="bound_root">Bound</option>
+                  </select>
+                </td>
+              )}
               <td>
                 <button className="btn btn-secondary" onClick={() => handleDelete(item.id)}>Xóa</button>
               </td>
@@ -80,6 +121,13 @@ function PartTable({ section }) {
       <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <input className="input" placeholder={section.label} value={newText} onChange={(e) => setNewText(e.target.value)} />
         <input className="input" placeholder="Nghĩa" value={newMeaning} onChange={(e) => setNewMeaning(e.target.value)} />
+        {isRoot && (
+          <select className="input" value={newRootSubtype} onChange={(e) => setNewRootSubtype(e.target.value)}>
+            <option value="">—</option>
+            <option value="free_root">Free</option>
+            <option value="bound_root">Bound</option>
+          </select>
+        )}
         <button type="submit" className="btn btn-primary">Thêm</button>
       </form>
     </div>
@@ -90,7 +138,7 @@ export default function WordPartsScreen() {
   return (
     <div style={{ maxWidth: 700 }}>
       <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Gốc từ</h1>
-      {SECTIONS.map((section) => <PartTable key={section.key} section={section} />)}
+      {SECTIONS.map((section) => <PartTable key={section.type} section={section} />)}
     </div>
   );
 }
