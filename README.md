@@ -15,4 +15,3 @@ Local-first English vocabulary spaced-repetition app, deployed on Vercel with Su
 1. `vercel link` (first time only, links this directory to a Vercel project)
 2. In the Vercel project dashboard, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as environment variables (Production + Preview).
 3. `vercel deploy --prod`
-#deploy
