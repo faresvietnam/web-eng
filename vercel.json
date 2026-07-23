@@ -2,5 +2,10 @@
   "buildCommand": "vite build",
   "devCommand": "vite",
   "outputDirectory": "dist",
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "rewrites": [
+    { "source": "/api/prefixes", "destination": "/api/prefixes/_" },
+    { "source": "/api/roots", "destination": "/api/roots/_" },
+    { "source": "/api/suffixes", "destination": "/api/suffixes/_" }
+  ]
 }
