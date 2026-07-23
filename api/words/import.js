@@ -38,6 +38,8 @@ module.exports = async (req, res) => {
         .single();
       if (insertError) throw insertError;
 
+      importedIds.push(insertedWord.id);
+
       const componentIds = await resolveComponentIds(supabase, components);
       await replaceWordComponents(supabase, insertedWord.id, componentIds);
 
@@ -51,8 +53,6 @@ module.exports = async (req, res) => {
         next_review_at: now,
       });
       if (reviewStateError) throw reviewStateError;
-
-      importedIds.push(insertedWord.id);
     }
   } catch (err) {
     if (importedIds.length > 0) {
