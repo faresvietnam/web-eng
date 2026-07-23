@@ -48,6 +48,8 @@ export default function StudyScreen() {
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [textInput, setTextInput] = useState('');
   const [inputError, setInputError] = useState(false);
+  const [comboStep, setComboStep] = useState(0);
+  const [comboPart0Correct, setComboPart0Correct] = useState(null);
 
   useEffect(() => {
     api.getToday().then((data) => setCards(data.cards));
@@ -68,7 +70,9 @@ export default function StudyScreen() {
   const distractorPool = allWords.length > 0 ? allWords : cards ? cards.map((c) => c.word) : [];
   const examplePairs = word ? parseSentencePairs(word.example, word.example_vi) : [];
   const hasExample = word ? examplePairs.some((p) => buildBlank(p.sentence, word.word) !== null) : false;
-  const effectiveType = exercise_type;
+  const isCombo = exercise_type === 'new_combo';
+  const comboPart1Type = hasExample ? 'mc_sentence' : 'mc_vi_en';
+  const effectiveType = isCombo ? (comboStep === 0 ? 'mc_en_vi' : comboPart1Type) : exercise_type;
 
   // Computed once per card (keyed on the `word` object reference, which is
   // stable across re-renders of the same card but changes when the card
@@ -86,7 +90,7 @@ export default function StudyScreen() {
     if (effectiveType === 'mc_sentence') return buildMcOptions(word, distractorPool, (w) => w.word);
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word]);
+  }, [word, comboStep]);
 
   const blankSentence = useMemo(() => {
     if (!word) return null;
@@ -129,19 +133,33 @@ export default function StudyScreen() {
         setSegmentIndex(0);
         setTextInput('');
         setInputError(false);
+        setComboStep(0);
+        setComboPart0Correct(null);
         setIndex((i) => i + 1);
       });
   }
 
   function handleMcChoice(choiceId) {
     if (answered) return;
+    const correct = choiceId === word.id;
     setSelectedId(choiceId);
-    setOutcome(choiceId === word.id ? 'good' : 'again');
     setAnswered(true);
     if (effectiveType === 'mc_vi_en' || effectiveType === 'mc_sentence') {
       const chosen = mcOptions.find((opt) => opt.id === choiceId);
       if (chosen) speak(chosen.label);
     }
+    if (isCombo && comboStep === 0) {
+      setComboPart0Correct(correct);
+      return;
+    }
+    const finalCorrect = isCombo ? comboPart0Correct && correct : correct;
+    setOutcome(finalCorrect ? 'good' : 'again');
+  }
+
+  function handleComboContinue() {
+    setComboStep(1);
+    setAnswered(false);
+    setSelectedId(null);
   }
 
   function handleSegmentSubmit(e) {
@@ -283,7 +301,7 @@ export default function StudyScreen() {
         </form>
       )}
 
-      {(answered || isDifficultCopy) && (
+      {((answered && !(isCombo && comboStep === 0)) || isDifficultCopy) && (
         <div>
           <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
@@ -317,9 +335,11 @@ export default function StudyScreen() {
         </div>
       )}
 
-      {answered && (
+      {answered && isCombo && comboStep === 0 ? (
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleComboContinue}>Tiếp tục</button>
+      ) : answered ? (
         <button className="btn btn-primary" style={{ width: '100%' }} onClick={goNext}>Thẻ tiếp theo →</button>
-      )}
+      ) : null}
     </div>
   );
 }
