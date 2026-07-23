@@ -1,17 +1,15 @@
 // src/components/WordBreakdown.jsx
 import React from 'react';
 
-const PART_CONFIG = [
-  { key: 'prefix', chipClass: 'chip-1', getText: (data) => data.prefix },
-  { key: 'root', chipClass: 'chip-2', getText: (data) => data.root },
-  { key: 'suffix', chipClass: 'chip-1', getText: (data) => data.suffix },
-];
+const CHIP_CLASS = {
+  prefix: 'chip-1',
+  root: 'chip-2',
+  suffix: 'chip-1',
+  combining_form: 'chip-1',
+};
 
 export default function WordBreakdown({ word, onRootClick }) {
-  const parts = PART_CONFIG
-    .map((cfg) => (word[cfg.key] ? { ...cfg, data: word[cfg.key] } : null))
-    .filter(Boolean);
-
+  const parts = word.word_components || [];
   if (parts.length === 0) return null;
 
   return (
@@ -19,24 +17,26 @@ export default function WordBreakdown({ word, onRootClick }) {
       <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Word breakdown</div>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         {parts.map((part, i) => {
-          const text = part.getText(part.data);
+          const { component } = part;
+          const chipClass = CHIP_CLASS[component.component_type] || 'chip-1';
+          const isRoot = component.component_type === 'root';
           return (
-            <React.Fragment key={part.key}>
+            <React.Fragment key={part.position}>
               {i > 0 && <span style={{ color: 'var(--ink-3)', marginTop: 6 }}>+</span>}
               <div style={{ textAlign: 'center' }}>
-                {part.key === 'root' && onRootClick ? (
+                {isRoot && onRootClick ? (
                   <button
-                    className={`chip ${part.chipClass}`}
+                    className={`chip ${chipClass}`}
                     style={{ border: 'none', cursor: 'pointer' }}
-                    onClick={() => onRootClick(part.data)}
+                    onClick={() => onRootClick(component)}
                   >
-                    {text}
+                    {component.text}
                   </button>
                 ) : (
-                  <span className={`chip ${part.chipClass}`}>{text}</span>
+                  <span className={`chip ${chipClass}`}>{component.text}</span>
                 )}
-                {part.data.meaning && (
-                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>{part.data.meaning}</div>
+                {component.meaning && (
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>{component.meaning}</div>
                 )}
               </div>
             </React.Fragment>
