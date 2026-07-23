@@ -132,7 +132,7 @@ export default function App() {
         </div>
         <main className="content">
           {activeTab === 'dashboard' && <DashboardScreen onViewAllDifficult={() => setActiveTab('vocabulary')} onRootClick={handleRootClick} />}
-          {activeTab === 'learn' && <StudyScreen />}
+          {activeTab === 'learn' && <StudyScreen onRootClick={handleRootClick} />}
           {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} rootFilter={rootFilter} onClearRootFilter={handleClearRootFilter} />}
           {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}
           {activeTab === 'wordparts' && <WordPartsScreen />}
