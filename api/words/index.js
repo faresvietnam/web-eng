@@ -11,17 +11,30 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     const rootId = req.query.root_id;
-    const wordComponentsEmbed = rootId
-      ? 'word_components!inner(position, component:components(*))'
-      : 'word_components(position, component:components(*))';
+    let wordIds;
+    if (rootId) {
+      const { data: matchingWordComponents, error: filterError } = await supabase
+        .from('word_components')
+        .select('word_id')
+        .eq('component_id', rootId);
+      if (filterError) {
+        res.status(500).json({ error: filterError.message });
+        return;
+      }
+      wordIds = matchingWordComponents.map((wc) => wc.word_id);
+      if (wordIds.length === 0) {
+        res.status(200).json({ words: [] });
+        return;
+      }
+    }
     let query = supabase
       .from('words')
-      .select(`*, review_state!inner(*), ${wordComponentsEmbed}`);
+      .select('*, review_state!inner(*), word_components(position, component:components(*))');
     if (req.query.status) {
       query = query.eq('review_state.status', req.query.status);
     }
     if (rootId) {
-      query = query.eq('word_components.component_id', rootId);
+      query = query.in('id', wordIds);
     }
     if (req.query.q) {
       const term = `%${req.query.q}%`;
