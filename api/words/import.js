@@ -1,7 +1,7 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
 const { requireUser } = require('../../lib/auth');
 const { parseWordsCsv } = require('../../lib/csv');
-const { upsertWordPart } = require('../../lib/upsertWordPart');
+const { resolveComponentIds, replaceWordComponents } = require('../../lib/wordComponents');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -26,52 +26,44 @@ module.exports = async (req, res) => {
 
   const supabase = getSupabaseClient(token);
   const now = new Date().toISOString();
+  const importedIds = [];
 
-  let resolvedRows;
   try {
-    resolvedRows = [];
     for (const row of rows) {
-      const { prefix, root, suffix, ...rest } = row;
-      const [prefix_id, root_id, suffix_id] = await Promise.all([
-        upsertWordPart(supabase, 'prefixes', 'prefix', prefix),
-        upsertWordPart(supabase, 'roots', 'root', root),
-        upsertWordPart(supabase, 'suffixes', 'suffix', suffix),
-      ]);
-      resolvedRows.push({ ...rest, prefix_id, root_id, suffix_id });
+      const { components, ...wordFields } = row;
+      const { data: insertedWord, error: insertError } = await supabase
+        .from('words')
+        .insert(wordFields)
+        .select()
+        .single();
+      if (insertError) throw insertError;
+
+      const componentIds = await resolveComponentIds(supabase, components);
+      await replaceWordComponents(supabase, insertedWord.id, componentIds);
+
+      const { error: reviewStateError } = await supabase.from('review_state').insert({
+        word_id: insertedWord.id,
+        status: 'new',
+        step_index: 0,
+        interval_days: 0,
+        correct_count: 0,
+        failure_count: 0,
+        next_review_at: now,
+      });
+      if (reviewStateError) throw reviewStateError;
+
+      importedIds.push(insertedWord.id);
     }
   } catch (err) {
+    if (importedIds.length > 0) {
+      const { error: cleanupError } = await supabase.from('words').delete().in('id', importedIds);
+      if (cleanupError) {
+        console.error('Failed to clean up partially imported words:', cleanupError.message);
+      }
+    }
     res.status(500).json({ error: err.message });
     return;
   }
 
-  const { data: inserted, error: insertError } = await supabase.from('words').insert(resolvedRows).select();
-  if (insertError) {
-    res.status(500).json({ error: insertError.message });
-    return;
-  }
-
-  const reviewStates = inserted.map((w) => ({
-    word_id: w.id,
-    status: 'new',
-    step_index: 0,
-    interval_days: 0,
-    correct_count: 0,
-    failure_count: 0,
-    next_review_at: now,
-  }));
-
-  const { error: reviewStateError } = await supabase.from('review_state').insert(reviewStates);
-  if (reviewStateError) {
-    const { error: cleanupError } = await supabase
-      .from('words')
-      .delete()
-      .in('id', inserted.map((w) => w.id));
-    if (cleanupError) {
-      console.error('Failed to clean up orphaned words after review_state insert failure:', cleanupError.message);
-    }
-    res.status(500).json({ error: reviewStateError.message });
-    return;
-  }
-
-  res.status(200).json({ imported: inserted.length, errors });
+  res.status(200).json({ imported: importedIds.length, errors });
 };
