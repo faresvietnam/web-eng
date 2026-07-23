@@ -322,14 +322,18 @@ export default function StudyScreen() {
             </div>
           )}
 
-          {word.example && (
+          {examplePairs.length > 0 && (
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 24 }}>
               <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{word.example}</div>
-              <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{word.example_vi}</span>
-                <button className="btn" style={{ borderRadius: '50%', width: 20, height: 20, padding: 0 }} onClick={() => speak(word.example)} aria-label="Phát âm">🔊</button>
-              </div>
+              {examplePairs.map((pair, i) => (
+                <div key={i} style={{ marginTop: i > 0 ? 12 : 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>{pair.sentence}</div>
+                  <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{pair.meaning}</span>
+                    <button className="btn" style={{ borderRadius: '50%', width: 20, height: 20, padding: 0 }} onClick={() => speak(pair.sentence)} aria-label="Phát âm">🔊</button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
