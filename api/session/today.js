@@ -16,6 +16,8 @@ module.exports = async (req, res) => {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
+  const wordsSelect = '*, prefix:prefixes(*), root:roots(*), suffix:suffixes(*)';
+
   const [
     { data: dailyProgress, error: dailyProgressError },
     { data: dueStates, error: dueError },
@@ -25,10 +27,10 @@ module.exports = async (req, res) => {
     supabase.from('daily_progress').select('*').eq('date', today).maybeSingle(),
     supabase
       .from('review_state')
-      .select('*, words(*)')
+      .select(`*, words(${wordsSelect})`)
       .neq('status', 'new')
       .lte('next_review_at', now.toISOString()),
-    supabase.from('review_state').select('*, words(*)').eq('status', 'new'),
+    supabase.from('review_state').select(`*, words(${wordsSelect})`).eq('status', 'new'),
     supabase.from('user_settings').select('*').maybeSingle(),
   ]);
 
@@ -53,7 +55,7 @@ module.exports = async (req, res) => {
     exercise_type: pickExerciseType({
       status: state.status,
       correct_count: state.correct_count,
-      hasSegments: Boolean(state.words.segments),
+      hasParts: Boolean(state.words.prefix_id || state.words.root_id || state.words.suffix_id),
       hasExample: hasUsableSentence(state.words.example, state.words.word),
     }),
   }));
