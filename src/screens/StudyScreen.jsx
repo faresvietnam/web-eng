@@ -90,7 +90,7 @@ export default function StudyScreen() {
     if (effectiveType === 'mc_sentence') return buildMcOptions(word, distractorPool, (w) => w.word);
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word, comboStep]);
+  }, [word, comboStep, allWords]);
 
   const blankSentence = useMemo(() => {
     if (!word) return null;
