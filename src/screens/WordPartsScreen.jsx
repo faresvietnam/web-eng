@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
 const SECTIONS = [
-  { key: 'prefix', label: 'Prefix', title: 'Prefix (tiền tố)', column: 'prefix', listKey: 'prefixes', get: api.getPrefixes, create: api.createPrefix, update: api.updatePrefix, remove: api.deletePrefix },
-  { key: 'root', label: 'Root', title: 'Root (gốc từ)', column: 'root', listKey: 'roots', get: api.getRoots, create: api.createRoot, update: api.updateRoot, remove: api.deleteRoot },
-  { key: 'suffix', label: 'Suffix', title: 'Suffix (hậu tố)', column: 'suffix', listKey: 'suffixes', get: api.getSuffixes, create: api.createSuffix, update: api.updateSuffix, remove: api.deleteSuffix },
+  { key: 'prefix', label: 'Tiền tố', title: 'Prefix (tiền tố)', column: 'prefix', listKey: 'prefixes', get: api.getPrefixes, create: api.createPrefix, update: api.updatePrefix, remove: api.deletePrefix },
+  { key: 'root', label: 'Gốc từ', title: 'Root (gốc từ)', column: 'root', listKey: 'roots', get: api.getRoots, create: api.createRoot, update: api.updateRoot, remove: api.deleteRoot },
+  { key: 'suffix', label: 'Hậu tố', title: 'Suffix (hậu tố)', column: 'suffix', listKey: 'suffixes', get: api.getSuffixes, create: api.createSuffix, update: api.updateSuffix, remove: api.deleteSuffix },
 ];
 
 function PartTable({ section }) {
