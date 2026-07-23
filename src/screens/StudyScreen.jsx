@@ -13,6 +13,30 @@ function buildMcOptions(correctWord, pool, byField) {
   return options.map((w) => ({ id: w.id, label: byField(w) }));
 }
 
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function splitDelimited(value) {
+  return (value || '')
+    .split('()')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseSentencePairs(example, exampleVi) {
+  const sentences = splitDelimited(example);
+  const meanings = splitDelimited(exampleVi);
+  return sentences.map((sentence, i) => ({ sentence, meaning: meanings[i] || '' }));
+}
+
+function buildBlank(sentence, wordText) {
+  if (!sentence || !wordText) return null;
+  const re = new RegExp(`\\b${escapeRegExp(wordText)}\\b`, 'i');
+  if (!re.test(sentence)) return null;
+  return sentence.replace(re, '____');
+}
+
 export default function StudyScreen() {
   const [cards, setCards] = useState(null);
   const [allWords, setAllWords] = useState([]);
@@ -42,6 +66,9 @@ export default function StudyScreen() {
   const status = card && card.review_state ? card.review_state.status : 'new';
   const segments = word && word.segments ? word.segments.split('|') : [];
   const distractorPool = allWords.length > 0 ? allWords : cards ? cards.map((c) => c.word) : [];
+  const examplePairs = word ? parseSentencePairs(word.example, word.example_vi) : [];
+  const hasExample = word ? examplePairs.some((p) => buildBlank(p.sentence, word.word) !== null) : false;
+  const effectiveType = exercise_type;
 
   // Computed once per card (keyed on the `word` object reference, which is
   // stable across re-renders of the same card but changes when the card
@@ -54,16 +81,27 @@ export default function StudyScreen() {
   // stale "no word yet" result of `null` forever.
   const mcOptions = useMemo(() => {
     if (!word) return null;
-    if (exercise_type === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
-    if (exercise_type === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
+    if (effectiveType === 'mc_en_vi') return buildMcOptions(word, distractorPool, (w) => w.meaning);
+    if (effectiveType === 'mc_vi_en') return buildMcOptions(word, distractorPool, (w) => w.word);
+    if (effectiveType === 'mc_sentence') return buildMcOptions(word, distractorPool, (w) => w.word);
     return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word]);
+
+  const blankSentence = useMemo(() => {
+    if (!word) return null;
+    const candidates = examplePairs
+      .map((p) => ({ ...p, blank: buildBlank(p.sentence, word.word) }))
+      .filter((p) => p.blank);
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
   // The word is the question itself only for mc_en_vi — auto-read it as soon
   // as the question appears.
   useEffect(() => {
-    if (word && exercise_type === 'mc_en_vi') speak(word.word);
+    if (word && effectiveType === 'mc_en_vi') speak(word.word);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
@@ -100,7 +138,7 @@ export default function StudyScreen() {
     setSelectedId(choiceId);
     setOutcome(choiceId === word.id ? 'good' : 'again');
     setAnswered(true);
-    if (exercise_type === 'mc_vi_en') {
+    if (effectiveType === 'mc_vi_en' || effectiveType === 'mc_sentence') {
       const chosen = mcOptions.find((opt) => opt.id === choiceId);
       if (chosen) speak(chosen.label);
     }
@@ -137,7 +175,7 @@ export default function StudyScreen() {
   }
 
   const isDifficultCopy = exercise_type === 'full_type' && status === 'difficult';
-  const showWordHeading = answered || exercise_type === 'mc_en_vi' || isDifficultCopy;
+  const showWordHeading = answered || effectiveType === 'mc_en_vi' || isDifficultCopy;
 
   return (
     <div className="card" style={{ maxWidth: 680, margin: '0 auto', padding: '28px 32px' }}>
@@ -162,10 +200,15 @@ export default function StudyScreen() {
             </div>
           )}
         </div>
-      ) : exercise_type === 'mc_vi_en' ? (
+      ) : effectiveType === 'mc_vi_en' ? (
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Từ nào có nghĩa là:</p>
           <h1 style={{ fontSize: 32, margin: 0, fontWeight: 800 }}>{word.meaning}</h1>
+        </div>
+      ) : effectiveType === 'mc_sentence' ? (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Điền từ còn thiếu vào câu:</p>
+          <h2 style={{ fontSize: 24, margin: 0, fontWeight: 700, lineHeight: 1.4 }}>{blankSentence ? blankSentence.blank : ''}</h2>
         </div>
       ) : null}
 
