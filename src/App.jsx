@@ -5,6 +5,7 @@ import StudyScreen from './screens/StudyScreen.jsx';
 import VocabularyScreen from './screens/VocabularyScreen.jsx';
 import ImportScreen from './screens/ImportScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
+import WordPartsScreen from './screens/WordPartsScreen.jsx';
 import { supabase } from './supabaseClient.js';
 import LoginScreen from './screens/LoginScreen.jsx';
 import { renderDailyGoalText, dailyGoalProgress } from './dailyGoal.js';
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'learn', label: 'Learn' },
   { key: 'vocabulary', label: 'Vocabulary' },
   { key: 'import', label: 'Import' },
+  { key: 'wordparts', label: 'Gốc từ' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -123,6 +125,7 @@ export default function App() {
           {activeTab === 'learn' && <StudyScreen />}
           {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} />}
           {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}
+          {activeTab === 'wordparts' && <WordPartsScreen />}
           {activeTab === 'settings' && <SettingsScreen />}
         </main>
       </div>
