@@ -33,8 +33,9 @@ describe('pickExerciseType', () => {
     expect(pickExerciseType({ status: 'learning', correct_count: 3, hasSegments: false, hasExample: false })).toBe('full_type');
   });
 
-  it('returns full_type at correct_count 4 even when hasSegments', () => {
-    expect(pickExerciseType({ status: 'learning', correct_count: 4, hasSegments: true, hasExample: true })).toBe('full_type');
+  it('keeps returning segment at correct_count 4+ when hasSegments', () => {
+    expect(pickExerciseType({ status: 'learning', correct_count: 4, hasSegments: true, hasExample: true })).toBe('segment');
+    expect(pickExerciseType({ status: 'learning', correct_count: 10, hasSegments: true, hasExample: false })).toBe('segment');
   });
 
   it('returns full_type at correct_count 10 when not hasSegments', () => {
