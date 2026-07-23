@@ -2,6 +2,7 @@ const { getSupabaseClient } = require('../../lib/supabaseClient');
 const { requireUser } = require('../../lib/auth');
 const { buildDailyQueue } = require('../../lib/dailyQueue');
 const { pickExerciseType } = require('../../lib/exerciseType');
+const { hasUsableSentence } = require('../../lib/sentenceBlank');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -53,6 +54,7 @@ module.exports = async (req, res) => {
       status: state.status,
       correct_count: state.correct_count,
       hasSegments: Boolean(state.words.segments),
+      hasExample: hasUsableSentence(state.words.example, state.words.word),
     }),
   }));
 
