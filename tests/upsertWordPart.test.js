@@ -43,4 +43,47 @@ describe('upsertWordPart', () => {
     const id = await upsertWordPart(supabase, 'roots', 'root', 'spect');
     expect(id).toBe(9);
   });
+
+  it('finds the row created by a prior sequential call instead of inserting a duplicate', async () => {
+    // Simulates the fixed api/words/import.js behavior: two rows share the same
+    // root text ("act"), and their upsertWordPart calls are awaited sequentially
+    // (not concurrently). The mock tracks rows across calls so the second call's
+    // select() sees what the first call's insert() created.
+    const rowsByText = new Map();
+    let nextId = 1;
+    let insertCount = 0;
+
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: (_column, value) => ({
+            maybeSingle: async () => ({
+              data: rowsByText.has(value) ? { id: rowsByText.get(value) } : null,
+              error: null,
+            }),
+          }),
+        }),
+        insert: (payload) => ({
+          select: () => ({
+            single: async () => {
+              insertCount += 1;
+              const value = payload.root;
+              if (rowsByText.has(value)) {
+                return { data: null, error: new Error('duplicate key value violates unique constraint') };
+              }
+              const id = nextId++;
+              rowsByText.set(value, id);
+              return { data: { id }, error: null };
+            },
+          }),
+        }),
+      }),
+    };
+
+    const firstId = await upsertWordPart(supabase, 'roots', 'root', 'act');
+    const secondId = await upsertWordPart(supabase, 'roots', 'root', 'act');
+
+    expect(firstId).toBe(secondId);
+    expect(insertCount).toBe(1);
+  });
 });

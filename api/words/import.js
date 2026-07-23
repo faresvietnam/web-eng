@@ -29,15 +29,16 @@ module.exports = async (req, res) => {
 
   let resolvedRows;
   try {
-    resolvedRows = await Promise.all(rows.map(async (row) => {
+    resolvedRows = [];
+    for (const row of rows) {
       const { prefix, root, suffix, ...rest } = row;
       const [prefix_id, root_id, suffix_id] = await Promise.all([
         upsertWordPart(supabase, 'prefixes', 'prefix', prefix),
         upsertWordPart(supabase, 'roots', 'root', root),
         upsertWordPart(supabase, 'suffixes', 'suffix', suffix),
       ]);
-      return { ...rest, prefix_id, root_id, suffix_id };
-    }));
+      resolvedRows.push({ ...rest, prefix_id, root_id, suffix_id });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
     return;
