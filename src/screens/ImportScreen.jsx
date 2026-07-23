@@ -1,7 +1,8 @@
+// src/screens/ImportScreen.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../api.js';
 
-const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', prefix: '', root: '', suffix: '' };
+const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', components: [] };
 
 const FIELDS = [
   { key: 'word', label: 'Word', placeholder: 'unbelievable' },
@@ -9,14 +10,24 @@ const FIELDS = [
   { key: 'category', label: 'Category', placeholder: 'appearance' },
   { key: 'part_of_speech', label: 'Part of speech', placeholder: 'adjective' },
   { key: 'ipa', label: 'IPA', placeholder: '/ʌnbɪˈliːvəbl/' },
-  { key: 'prefix', label: 'Prefix', placeholder: 'un' },
-  { key: 'root', label: 'Root', placeholder: 'believ' },
-  { key: 'suffix', label: 'Suffix', placeholder: 'able' },
+];
+
+const COMPONENT_TYPE_OPTIONS = [
+  { value: 'prefix', label: 'Prefix' },
+  { value: 'root', label: 'Root' },
+  { value: 'suffix', label: 'Suffix' },
+  { value: 'combining_form', label: 'Combining form' },
+];
+
+const ROOT_SUBTYPE_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'free_root', label: 'Free' },
+  { value: 'bound_root', label: 'Bound' },
 ];
 
 const TEMPLATE_CSV =
-  'word,meaning,category,part_of_speech,ipa,example,example_vi,prefix,root,suffix\n' +
-  'unbelievable,không thể tin được,appearance,adjective,/ʌnbɪˈliːvəbl/,It is unbelievable.,Nó thật khó tin.,un,believ,able\n';
+  'word,meaning,category,part_of_speech,ipa,example,example_vi,components\n' +
+  'unbelievable,không thể tin được,appearance,adjective,/ʌnbɪˈliːvəbl/,It is unbelievable.,Nó thật khó tin.,prefix:un|root:believ:free_root|suffix:able\n';
 const TEMPLATE_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE_CSV)}`;
 
 export default function ImportScreen({ editingWord, onDone }) {
@@ -38,15 +49,42 @@ export default function ImportScreen({ editingWord, onDone }) {
         ipa: editingWord.ipa || '',
         example: editingWord.example || '',
         example_vi: editingWord.example_vi || '',
-        prefix: editingWord.prefix?.prefix || '',
-        root: editingWord.root?.root || '',
-        suffix: editingWord.suffix?.suffix || '',
+        components: (editingWord.word_components || []).map((wc) => ({
+          component_type: wc.component.component_type,
+          text: wc.component.text,
+          root_subtype: wc.component.root_subtype || '',
+        })),
       });
     }
   }, [editingWord]);
 
   function handleFieldChange(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function handleComponentChange(index, field, value) {
+    setForm((f) => ({
+      ...f,
+      components: f.components.map((c, i) => (i === index ? { ...c, [field]: value } : c)),
+    }));
+  }
+
+  function handleAddComponent() {
+    setForm((f) => ({ ...f, components: [...f.components, { component_type: 'prefix', text: '', root_subtype: '' }] }));
+  }
+
+  function handleRemoveComponent(index) {
+    setForm((f) => ({ ...f, components: f.components.filter((_, i) => i !== index) }));
+  }
+
+  function handleMoveComponent(index, direction) {
+    setForm((f) => {
+      const target = index + direction;
+      if (target < 0 || target >= f.components.length) return f;
+      const components = [...f.components];
+      [components[index], components[target]] = [components[target], components[index]];
+      return { ...f, components };
+    });
   }
 
   function readCsvFile(file) {
@@ -72,11 +110,21 @@ export default function ImportScreen({ editingWord, onDone }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError(null);
+    const payload = {
+      ...form,
+      components: form.components
+        .filter((c) => c.text.trim())
+        .map((c) => ({
+          component_type: c.component_type,
+          text: c.text.trim(),
+          root_subtype: c.component_type === 'root' && c.root_subtype ? c.root_subtype : null,
+        })),
+    };
     try {
       if (editingWord) {
-        await api.updateWord(editingWord.id, form);
+        await api.updateWord(editingWord.id, payload);
       } else {
-        await api.createWord(form);
+        await api.createWord(payload);
       }
       setForm(EMPTY_FORM);
       onDone();
@@ -139,7 +187,8 @@ export default function ImportScreen({ editingWord, onDone }) {
           <div className="card" style={{ background: '#fafafa' }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>CSV format tip</div>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 10 }}>
-              Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, prefix, root, suffix
+              Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, components
+              (pipe-delimited, e.g. <code>prefix:un|root:believ:free_root|suffix:able</code>)
             </div>
             <a href={TEMPLATE_HREF} download="template.csv" style={{ fontSize: 13, fontWeight: 600 }}>
               ↓ Download template.csv
@@ -150,14 +199,14 @@ export default function ImportScreen({ editingWord, onDone }) {
           <textarea
             className="input"
             rows={4}
-            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,prefix,root,suffix"
+            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,components"
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
           />
           <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>Import</button>
         </form>
         <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 10 }}>
-          CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, prefix, root, suffix
+          CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, components
         </div>
         {importError && <div style={{ color: 'var(--red)', marginTop: 10 }}>{importError}</div>}
         {importResult && (
@@ -185,6 +234,43 @@ export default function ImportScreen({ editingWord, onDone }) {
             />
           </div>
         ))}
+        <div style={{ gridColumn: 'span 2' }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+            Cấu tạo từ (prefix / root / suffix / combining form)
+          </label>
+          {form.components.map((c, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <select
+                className="input"
+                style={{ width: 160 }}
+                value={c.component_type}
+                onChange={(e) => handleComponentChange(i, 'component_type', e.target.value)}
+              >
+                {COMPONENT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <input
+                className="input"
+                placeholder="text"
+                value={c.text}
+                onChange={(e) => handleComponentChange(i, 'text', e.target.value)}
+              />
+              {c.component_type === 'root' && (
+                <select
+                  className="input"
+                  style={{ width: 110 }}
+                  value={c.root_subtype}
+                  onChange={(e) => handleComponentChange(i, 'root_subtype', e.target.value)}
+                >
+                  {ROOT_SUBTYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              )}
+              <button type="button" className="btn btn-secondary" onClick={() => handleMoveComponent(i, -1)} disabled={i === 0}>↑</button>
+              <button type="button" className="btn btn-secondary" onClick={() => handleMoveComponent(i, 1)} disabled={i === form.components.length - 1}>↓</button>
+              <button type="button" className="btn btn-secondary" onClick={() => handleRemoveComponent(i)}>Xóa</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-secondary" onClick={handleAddComponent}>+ Thêm phần</button>
+        </div>
         <div style={{ gridColumn: 'span 2' }}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Example</label>
           <input className="input" placeholder="She has a beautiful smile." value={form.example} onChange={(e) => handleFieldChange('example', e.target.value)} />
