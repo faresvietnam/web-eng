@@ -1,20 +1,22 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../api.js';
 
-const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', segments: '' };
+const EMPTY_FORM = { word: '', meaning: '', category: '', part_of_speech: '', ipa: '', example: '', example_vi: '', prefix: '', root: '', suffix: '' };
 
 const FIELDS = [
-  { key: 'word', label: 'Word', placeholder: 'beautiful' },
-  { key: 'meaning', label: 'Meaning', placeholder: 'đẹp' },
+  { key: 'word', label: 'Word', placeholder: 'unbelievable' },
+  { key: 'meaning', label: 'Meaning', placeholder: 'không thể tin được' },
   { key: 'category', label: 'Category', placeholder: 'appearance' },
   { key: 'part_of_speech', label: 'Part of speech', placeholder: 'adjective' },
-  { key: 'ipa', label: 'IPA', placeholder: '/ˈbjuːtɪfəl/' },
-  { key: 'segments', label: 'Segments', placeholder: 'beauty|ful' },
+  { key: 'ipa', label: 'IPA', placeholder: '/ʌnbɪˈliːvəbl/' },
+  { key: 'prefix', label: 'Prefix', placeholder: 'un' },
+  { key: 'root', label: 'Root', placeholder: 'believ' },
+  { key: 'suffix', label: 'Suffix', placeholder: 'able' },
 ];
 
 const TEMPLATE_CSV =
-  'word,meaning,category,part_of_speech,ipa,example,example_vi,segments\n' +
-  'beautiful,đẹp,appearance,adjective,/ˈbjuːtɪfəl/,She has a beautiful smile.,Cô ấy có nụ cười đẹp.,beauty|ful\n';
+  'word,meaning,category,part_of_speech,ipa,example,example_vi,prefix,root,suffix\n' +
+  'unbelievable,không thể tin được,appearance,adjective,/ʌnbɪˈliːvəbl/,It is unbelievable.,Nó thật khó tin.,un,believ,able\n';
 const TEMPLATE_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE_CSV)}`;
 
 export default function ImportScreen({ editingWord, onDone }) {
@@ -36,7 +38,9 @@ export default function ImportScreen({ editingWord, onDone }) {
         ipa: editingWord.ipa || '',
         example: editingWord.example || '',
         example_vi: editingWord.example_vi || '',
-        segments: editingWord.segments || '',
+        prefix: editingWord.prefix?.prefix || '',
+        root: editingWord.root?.root || '',
+        suffix: editingWord.suffix?.suffix || '',
       });
     }
   }, [editingWord]);
@@ -135,7 +139,7 @@ export default function ImportScreen({ editingWord, onDone }) {
           <div className="card" style={{ background: '#fafafa' }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>CSV format tip</div>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 10 }}>
-              Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, segments
+              Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, prefix, root, suffix
             </div>
             <a href={TEMPLATE_HREF} download="template.csv" style={{ fontSize: 13, fontWeight: 600 }}>
               ↓ Download template.csv
@@ -146,14 +150,14 @@ export default function ImportScreen({ editingWord, onDone }) {
           <textarea
             className="input"
             rows={4}
-            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,segments"
+            placeholder="word,meaning,category,part_of_speech,ipa,example,example_vi,prefix,root,suffix"
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
           />
           <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>Import</button>
         </form>
         <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 10 }}>
-          CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, segments
+          CSV format tip — Columns: word, meaning, category, part_of_speech, ipa, example, example_vi, prefix, root, suffix
         </div>
         {importError && <div style={{ color: 'var(--red)', marginTop: 10 }}>{importError}</div>}
         {importResult && (
