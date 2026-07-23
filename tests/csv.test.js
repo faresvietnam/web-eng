@@ -6,19 +6,21 @@ const { parseWordsCsv } = require('../lib/csv');
 
 describe('parseWordsCsv', () => {
   it('parses valid rows with all columns', () => {
-    const csv = 'word,meaning,category,part_of_speech,ipa,example,example_vi,segments\nbeautiful,đẹp,adjectives,adj,/bjuːtɪfəl/,It is beautiful.,Nó đẹp.,beauty|ful';
+    const csv = 'word,meaning,category,part_of_speech,ipa,example,example_vi,prefix,root,suffix\nunbelievable,không thể tin được,adjectives,adj,/ʌnbɪˈliːvəbl/,It is unbelievable.,Nó thật khó tin.,un,believ,able';
     const { rows, errors } = parseWordsCsv(csv);
     expect(errors).toEqual([]);
     expect(rows).toEqual([
       {
-        word: 'beautiful',
-        meaning: 'đẹp',
+        word: 'unbelievable',
+        meaning: 'không thể tin được',
         category: 'adjectives',
         part_of_speech: 'adj',
-        ipa: '/bjuːtɪfəl/',
-        example: 'It is beautiful.',
-        example_vi: 'Nó đẹp.',
-        segments: 'beauty|ful',
+        ipa: '/ʌnbɪˈliːvəbl/',
+        example: 'It is unbelievable.',
+        example_vi: 'Nó thật khó tin.',
+        prefix: 'un',
+        root: 'believ',
+        suffix: 'able',
       },
     ]);
   });
@@ -34,7 +36,9 @@ describe('parseWordsCsv', () => {
       ipa: null,
       example: null,
       example_vi: null,
-      segments: null,
+      prefix: null,
+      root: null,
+      suffix: null,
     });
   });
 

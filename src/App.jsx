@@ -5,6 +5,7 @@ import StudyScreen from './screens/StudyScreen.jsx';
 import VocabularyScreen from './screens/VocabularyScreen.jsx';
 import ImportScreen from './screens/ImportScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
+import WordPartsScreen from './screens/WordPartsScreen.jsx';
 import { supabase } from './supabaseClient.js';
 import LoginScreen from './screens/LoginScreen.jsx';
 import { renderDailyGoalText, dailyGoalProgress } from './dailyGoal.js';
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'learn', label: 'Learn' },
   { key: 'vocabulary', label: 'Vocabulary' },
   { key: 'import', label: 'Import' },
+  { key: 'wordparts', label: 'Gốc từ' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -31,6 +33,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [editingWord, setEditingWord] = useState(null);
   const [dailyGoal, setDailyGoal] = useState(null);
+  const [rootFilter, setRootFilter] = useState(null);
 
   useEffect(() => {
     if (session) {
@@ -46,6 +49,15 @@ export default function App() {
   function handleImportDone() {
     setEditingWord(null);
     setActiveTab('vocabulary');
+  }
+
+  function handleRootClick(root) {
+    setRootFilter(root);
+    setActiveTab('vocabulary');
+  }
+
+  function handleClearRootFilter() {
+    setRootFilter(null);
   }
 
   if (session === undefined) {
@@ -119,10 +131,11 @@ export default function App() {
           <input className="input topbar-search" placeholder="Search words, tags, examples..." />
         </div>
         <main className="content">
-          {activeTab === 'dashboard' && <DashboardScreen onViewAllDifficult={() => setActiveTab('vocabulary')} />}
-          {activeTab === 'learn' && <StudyScreen />}
-          {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} />}
+          {activeTab === 'dashboard' && <DashboardScreen onViewAllDifficult={() => setActiveTab('vocabulary')} onRootClick={handleRootClick} />}
+          {activeTab === 'learn' && <StudyScreen onRootClick={handleRootClick} />}
+          {activeTab === 'vocabulary' && <VocabularyScreen onEdit={handleEditWord} rootFilter={rootFilter} onClearRootFilter={handleClearRootFilter} />}
           {activeTab === 'import' && <ImportScreen editingWord={editingWord} onDone={handleImportDone} />}
+          {activeTab === 'wordparts' && <WordPartsScreen />}
           {activeTab === 'settings' && <SettingsScreen />}
         </main>
       </div>

@@ -1,6 +1,7 @@
 const { getSupabaseClient } = require('../../lib/supabaseClient');
 const { requireUser } = require('../../lib/auth');
 const { parseWordsCsv } = require('../../lib/csv');
+const { upsertWordPart } = require('../../lib/upsertWordPart');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -26,7 +27,24 @@ module.exports = async (req, res) => {
   const supabase = getSupabaseClient(token);
   const now = new Date().toISOString();
 
-  const { data: inserted, error: insertError } = await supabase.from('words').insert(rows).select();
+  let resolvedRows;
+  try {
+    resolvedRows = [];
+    for (const row of rows) {
+      const { prefix, root, suffix, ...rest } = row;
+      const [prefix_id, root_id, suffix_id] = await Promise.all([
+        upsertWordPart(supabase, 'prefixes', 'prefix', prefix),
+        upsertWordPart(supabase, 'roots', 'root', root),
+        upsertWordPart(supabase, 'suffixes', 'suffix', suffix),
+      ]);
+      resolvedRows.push({ ...rest, prefix_id, root_id, suffix_id });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+    return;
+  }
+
+  const { data: inserted, error: insertError } = await supabase.from('words').insert(resolvedRows).select();
   if (insertError) {
     res.status(500).json({ error: insertError.message });
     return;

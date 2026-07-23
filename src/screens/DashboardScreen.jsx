@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { speak } from '../speak.js';
 import { renderDailyGoalText, dailyGoalProgress } from '../dailyGoal.js';
+import WordBreakdown from '../components/WordBreakdown.jsx';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
@@ -38,7 +39,7 @@ function sortForPreview(words) {
   });
 }
 
-export default function DashboardScreen({ onViewAllDifficult }) {
+export default function DashboardScreen({ onViewAllDifficult, onRootClick }) {
   const [summary, setSummary] = useState(null);
   const [chart, setChart] = useState(null);
   const [previewCards, setPreviewCards] = useState(null);
@@ -111,19 +112,7 @@ export default function DashboardScreen({ onViewAllDifficult }) {
               <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Meaning (Vietnamese)</div>
               <div style={{ fontSize: 16, fontWeight: 600 }}>{previewCard.word.meaning}</div>
             </div>
-            {previewCard.word.segments && (
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Word breakdown</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {previewCard.word.segments.split('|').map((seg, i) => (
-                    <React.Fragment key={seg}>
-                      {i > 0 && <span style={{ color: 'var(--ink-3)' }}>+</span>}
-                      <span className={`chip ${i === 0 ? 'chip-1' : 'chip-2'}`}>{seg}</span>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
+            <WordBreakdown word={previewCard.word} onRootClick={onRootClick} />
             {examplePairs.length > 0 && (
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 20 }}>
                 <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>

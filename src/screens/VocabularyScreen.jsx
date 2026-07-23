@@ -22,7 +22,7 @@ function formatNextReview(iso) {
   return `${days} ngày nữa`;
 }
 
-export default function VocabularyScreen({ onEdit }) {
+export default function VocabularyScreen({ onEdit, rootFilter, onClearRootFilter }) {
   const [words, setWords] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -31,10 +31,11 @@ export default function VocabularyScreen({ onEdit }) {
     const params = {};
     if (filter !== 'all') params.status = filter;
     if (search) params.q = search;
+    if (rootFilter) params.root_id = rootFilter.id;
     api.getWords(params).then((data) => setWords(data.words)).catch((err) => console.error('Failed to load words:', err.message));
   }
 
-  useEffect(reload, [filter, search]);
+  useEffect(reload, [filter, search, rootFilter]);
 
   async function handleDelete(id) {
     try {
@@ -48,6 +49,12 @@ export default function VocabularyScreen({ onEdit }) {
   return (
     <div>
       <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Danh sách từ vựng</h1>
+      {rootFilter && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+          <span className="tag tag-pos">Gốc từ: {rootFilter.root}</span>
+          <button className="btn btn-secondary" onClick={onClearRootFilter}>×</button>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div className="seg">
           {FILTERS.map((f) => (

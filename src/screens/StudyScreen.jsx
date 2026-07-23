@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { speak } from '../speak.js';
+import WordBreakdown from '../components/WordBreakdown.jsx';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
@@ -37,7 +38,7 @@ function buildBlank(sentence, wordText) {
   return sentence.replace(re, '____');
 }
 
-export default function StudyScreen() {
+export default function StudyScreen({ onRootClick }) {
   const [cards, setCards] = useState(null);
   const [allWords, setAllWords] = useState([]);
   const [index, setIndex] = useState(0);
@@ -45,7 +46,7 @@ export default function StudyScreen() {
   const [selectedId, setSelectedId] = useState(null);
   const [outcome, setOutcome] = useState('good');
   const [mistakeMade, setMistakeMade] = useState(false);
-  const [segmentIndex, setSegmentIndex] = useState(0);
+  const [partAnswered, setPartAnswered] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [inputError, setInputError] = useState(false);
   const [comboStep, setComboStep] = useState(0);
@@ -66,7 +67,21 @@ export default function StudyScreen() {
   const word = card ? card.word : null;
   const exercise_type = card ? card.exercise_type : null;
   const status = card && card.review_state ? card.review_state.status : 'new';
-  const segments = word && word.segments ? word.segments.split('|') : [];
+  const parts = useMemo(() => {
+    if (!word) return [];
+    const list = [];
+    if (word.prefix) list.push({ type: 'prefix', text: word.prefix.prefix });
+    if (word.root) list.push({ type: 'root', text: word.root.root });
+    if (word.suffix) list.push({ type: 'suffix', text: word.suffix.suffix });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word]);
+
+  const hiddenPartIndex = useMemo(() => {
+    if (parts.length === 0) return -1;
+    return Math.floor(Math.random() * parts.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word]);
   const distractorPool = allWords.length > 0 ? allWords : cards ? cards.map((c) => c.word) : [];
   const examplePairs = word ? parseSentencePairs(word.example, word.example_vi) : [];
   const hasExample = word ? examplePairs.some((p) => buildBlank(p.sentence, word.word) !== null) : false;
@@ -113,7 +128,7 @@ export default function StudyScreen() {
   // correct submit or "Xem đáp án") — read it at that point. mc_vi_en is
   // handled separately in handleMcChoice (reads the chosen option instead).
   useEffect(() => {
-    if (answered && (exercise_type === 'segment' || exercise_type === 'full_type')) {
+    if (answered && (exercise_type === 'parts' || exercise_type === 'full_type')) {
       speak(word.word);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +145,7 @@ export default function StudyScreen() {
         setAnswered(false);
         setSelectedId(null);
         setMistakeMade(false);
-        setSegmentIndex(0);
+        setPartAnswered(false);
         setTextInput('');
         setInputError(false);
         setComboStep(0);
@@ -162,12 +177,12 @@ export default function StudyScreen() {
     setSelectedId(null);
   }
 
-  function handleSegmentSubmit(e) {
+  function handlePartSubmit(e) {
     e.preventDefault();
-    const expected = segments[segmentIndex];
+    const expected = parts[hiddenPartIndex].text;
     if (textInput.trim().toLowerCase() === expected.toLowerCase()) {
       setInputError(false);
-      setSegmentIndex((s) => s + 1);
+      setPartAnswered(true);
       setTextInput('');
     } else {
       setInputError(true);
@@ -247,11 +262,11 @@ export default function StudyScreen() {
         </div>
       )}
 
-      {!answered && exercise_type === 'segment' && segmentIndex < segments.length && (
-        <form onSubmit={handleSegmentSubmit} style={{ marginBottom: 24 }}>
+      {!answered && exercise_type === 'parts' && !partAnswered && (
+        <form onSubmit={handlePartSubmit} style={{ marginBottom: 24 }}>
           <p>
-            {segments.map((seg, i) => (
-              <span key={i}>{i < segmentIndex ? seg : i === segmentIndex ? '____' : '....'} </span>
+            {parts.map((p, i) => (
+              <span key={p.type}>{i === hiddenPartIndex ? '____' : p.text} </span>
             ))}
           </p>
           <input
@@ -267,7 +282,7 @@ export default function StudyScreen() {
         </form>
       )}
 
-      {!answered && exercise_type === 'segment' && segmentIndex >= segments.length && (
+      {!answered && exercise_type === 'parts' && partAnswered && (
         <form onSubmit={handleFullWordSubmit} style={{ marginBottom: 24 }}>
           <p>Nhập lại toàn bộ từ:</p>
           <input
@@ -308,19 +323,7 @@ export default function StudyScreen() {
             <div style={{ fontSize: 18, fontWeight: 600 }}>{word.meaning}</div>
           </div>
 
-          {word.segments && (
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 8 }}>Word breakdown</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {segments.map((seg, i) => (
-                  <React.Fragment key={seg}>
-                    {i > 0 && <span style={{ color: 'var(--ink-3)' }}>+</span>}
-                    <span className={`chip ${i === 0 ? 'chip-1' : 'chip-2'}`}>{seg}</span>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-          )}
+          <WordBreakdown word={word} onRootClick={onRootClick} />
 
           {examplePairs.length > 0 && (
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 24 }}>
