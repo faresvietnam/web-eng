@@ -10,6 +10,7 @@ const FILTERS = [
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 const STATUS_LABEL = { new: 'New', learning: 'Learning', difficult: 'Difficult' };
+const WORD_TYPE_LABEL = { simple: 'Đơn', derived: 'Phái sinh', compound: 'Ghép', compound_derived: 'Ghép phái sinh' };
 
 function formatNextReview(iso) {
   const diffMs = new Date(iso).getTime() - Date.now();
@@ -51,7 +52,7 @@ export default function VocabularyScreen({ onEdit, rootFilter, onClearRootFilter
       <h1 style={{ fontSize: 22, margin: '0 0 20px' }}>Danh sách từ vựng</h1>
       {rootFilter && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-          <span className="tag tag-pos">Gốc từ: {rootFilter.root}</span>
+          <span className="tag tag-pos">Gốc từ: {rootFilter.text}</span>
           <button className="btn btn-secondary" onClick={onClearRootFilter}>×</button>
         </div>
       )}
@@ -79,7 +80,7 @@ export default function VocabularyScreen({ onEdit, rootFilter, onClearRootFilter
         <table className="table">
           <thead>
             <tr>
-              <th>Từ</th><th>Loại từ</th><th>Nghĩa</th><th>Chủ đề</th><th>Trạng thái</th><th>Ôn tiếp theo</th><th></th>
+              <th>Từ</th><th>Loại từ</th><th>Cấu tạo</th><th>Nghĩa</th><th>Chủ đề</th><th>Trạng thái</th><th>Ôn tiếp theo</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -90,6 +91,7 @@ export default function VocabularyScreen({ onEdit, rootFilter, onClearRootFilter
                 <tr key={w.id}>
                   <td style={{ fontWeight: 600 }}>{w.word}</td>
                   <td style={{ color: 'var(--ink-2)' }}>{w.part_of_speech}</td>
+                  <td><span className="tag tag-pos">{WORD_TYPE_LABEL[w.word_type] || w.word_type}</span></td>
                   <td>{w.meaning}</td>
                   <td style={{ color: 'var(--ink-2)' }}>{w.category}</td>
                   <td><span className={`tag ${STATUS_TAG_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
