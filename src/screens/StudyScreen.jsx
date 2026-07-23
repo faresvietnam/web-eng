@@ -19,7 +19,7 @@ function escapeRegExp(str) {
 
 function splitDelimited(value) {
   return (value || '')
-    .split('()')
+    .split('|')
     .map((s) => s.trim())
     .filter(Boolean);
 }

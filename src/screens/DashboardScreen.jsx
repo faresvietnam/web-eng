@@ -5,6 +5,19 @@ import { renderDailyGoalText, dailyGoalProgress } from '../dailyGoal.js';
 
 const STATUS_TAG_CLASS = { new: 'tag-new', learning: 'tag-learning', difficult: 'tag-difficult' };
 
+function splitDelimited(value) {
+  return (value || '')
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseSentencePairs(example, exampleVi) {
+  const sentences = splitDelimited(example);
+  const meanings = splitDelimited(exampleVi);
+  return sentences.map((sentence, i) => ({ sentence, meaning: meanings[i] || '' }));
+}
+
 function sortForPreview(words) {
   const now = Date.now();
   return [...words].sort((a, b) => {
@@ -56,6 +69,7 @@ export default function DashboardScreen({ onViewAllDifficult }) {
 
   const maxCount = Math.max(1, ...chart.map((d) => d.new_learned + d.reviewed_count));
   const previewCard = previewCards.length > 0 ? previewCards[previewIndex % previewCards.length] : null;
+  const examplePairs = previewCard ? parseSentencePairs(previewCard.word.example, previewCard.word.example_vi) : [];
   const totalWords = (summary.totals.new || 0) + (summary.totals.learning || 0) + (summary.totals.difficult || 0);
 
   return (
@@ -110,11 +124,15 @@ export default function DashboardScreen({ onViewAllDifficult }) {
                 </div>
               </div>
             )}
-            {previewCard.word.example && (
+            {examplePairs.length > 0 && (
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 20 }}>
                 <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>Example sentence</div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{previewCard.word.example}</div>
-                <div style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--ink-3)' }}>{previewCard.word.example_vi}</div>
+                {examplePairs.map((pair, i) => (
+                  <div key={i} style={{ marginTop: i > 0 ? 12 : 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{pair.sentence}</div>
+                    <div style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--ink-3)' }}>{pair.meaning}</div>
+                  </div>
+                ))}
               </div>
             )}
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setPreviewIndex((i) => i + 1)}>Next</button>
